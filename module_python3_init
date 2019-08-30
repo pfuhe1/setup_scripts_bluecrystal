@@ -1,0 +1,20 @@
+import os
+
+string = ' '
+if not 'MODULE_VERSION' in os.environ:
+        os.environ['MODULE_VERSION_STACK'] = '3.2.6'
+        os.environ['MODULE_VERSION'] = '3.2.6'
+else:
+        os.environ['MODULE_VERSION_STACK'] = os.environ['MODULE_VERSION']
+os.environ['MODULESHOME'] = '/cm/local/apps/environment-modules/3.2.6//Modules/3.2.6'
+
+if not 'MODULEPATH' in os.environ:
+        os.environ['MODULEPATH'] = os.popen("""sed 's/#.*$//' ${MODULESHOME}/init/.modulespath | awk 'NF==1{printf("%s:",$1)}'""").readline()
+
+if not 'LOADEDMODULES' in os.environ:
+        os.environ['LOADEDMODULES'] = '';
+
+def module(command, *arguments):
+        commands = os.popen('/cm/local/apps/environment-modules/3.2.6//Modules/%s/bin/modulecmd python %s %s' % (os.environ['MODULE_VERSION'], command, string.join(arguments))).read()
+#        commands = os.popen('/cm/local/apps/environment-modules/3.2.6//Modules/3.2.6/bin/modulecmd python %s %s' % (command, string.join(arguments))).read()
+        exec(commands)
