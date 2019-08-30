@@ -8,26 +8,60 @@ import os,glob,subprocess,sys,shutil
 exec(open('/newhome/pu17449/src/setup_scripts/module_python3_init').read())
 module('load','apps/cdo-1.9.3')
 
+
+##################################################################################
+# Inputs from FUSE simulations:
+
 runlength = 34 # years to run (for checking complete output)
 inbase = '/newhome/pu17449/data/fuse/fuse_GBM_v2-2/output'
-outbase = '/newhome/pu17449/data/mizuRoute/output'
 
-fuse_decision_ids = [900,902,904]
-calib_choices = ['rundef','calibratedparams']
+# List of decision IDS and calibration choices to loop over
+# These need to correspond to FUSE simulations 
+# FUSE simulations have the naming format: <setup-name>_<decision-id>_<calib-choice>
 setup_name = 'GBM-tiled2-2'
+fuse_decision_ids = [900,902,904]
+#calib_choices = ['rundef','calibratedparams']
+calib_choices = ['calibrated1','calibrated2','calibrated3', 'calibrateRand0001','calibrateRand0002','calibrateRand0003','calibrateRand0004','calibrateRand0005', 'calibrateRand0006','calibrateRand0007','calibrateRand0008','calibrateRand0009','calibrateRand0010', 'calibrateRand0011','calibrateRand0012','calibrateRand0013','calibrateRand0014','calibrateRand0015', 'calibrateRand0016','calibrateRand0017','calibrateRand0018','calibrateRand0019']
 
-# dictionary of input runs (name and input runoff)
+# initialise dictionary of input runs (name and input file)
 input_runs = {}
+
+##################################################################################
+# Mizuroute configuration and paths
+
+outbase = '/newhome/pu17449/data/mizuRoute/output'
+controldir = '/newhome/pu17449/data/mizuRoute/control_files'
+logdir = '/newhome/pu17449/data/mizuRoute/logs'
+
+# Control files: use template then modify OUTDIR,INDIR,FIN,OUTNAME
+control_template = '/newhome/pu17449/src/mizuRoute/route/settings/GBM-MERIT.control_template'
+
+qsub_script = '/newhome/pu17449/src/setup_scripts/mizuRoute/call_pythonscript.sh' # use this one so we can load python3 module before calling python
+
+# User choice
+override = True
+
+# Initialize list of control files
+sublist = []
+
+
+##################################################################################
+#
+# Loop over decision ids and calib choices
 for dec in fuse_decision_ids:
 	for calib in calib_choices:
 		sim_name = setup_name+'_'+str(dec)+'_'+calib
+
+		# First do some preprocessing to remove extra dimension and select q_instnt variable
+		# TODO: for large sets of runs, could move this command to the qsub script rather than here
+		# 
 		if calib == 'rundef':
 			infile = os.path.join(inbase,sim_name+'_runs_def.nc')
 			infile2 = os.path.join(inbase,sim_name+'_runs_def_qinst.nc')
 		else:
 			infile = os.path.join(inbase,sim_name+'_runs_pre_dist.nc')
 			infile2 = os.path.join(inbase,sim_name+'_runs_pre_dist_qinst.nc')
-		# TODO: for large sets of runs, could move this command to the qsub script rather than here
+		
 		if os.path.exists(infile2):
 			ret = 0
 		elif os.path.exists(infile) and not os.path.exists(infile2):
@@ -41,21 +75,11 @@ for dec in fuse_decision_ids:
 		else:
 			print('Error running cdo command on input file!')
 
-# User choice
-override = True
 
-# Control files: use template then modify OUTDIR,INDIR,FIN,OUTNAME
-control_template = '/newhome/pu17449/src/mizuRoute/route/settings/GBM-MERIT.control_template'
-controldir = '/newhome/pu17449/data/mizuRoute/control_files'
-logdir = '/newhome/pu17449/data/mizuRoute/logs'
-
-
-qsub_script = '/newhome/pu17449/src/setup_scripts/mizuRoute/call_pythonscript.sh' # use this one so we can load python3 module before calling python
-sublist = []
-
-
+##################################################################################
+#
+# Loop over input files and set up mizuRoute simulation
 for runname,inpath in input_runs.items():
-
 		print(runname)
 
 		if not os.path.exists(inpath):
@@ -78,7 +102,7 @@ for runname,inpath in input_runs.items():
 			continue
 
 		# copy template and modify
-		if override:
+		if override and os.path.exists(control_file):
 			os.remove(control_file)
 		if not os.path.exists(control_file):
 			shutil.copy(control_template,control_file)
@@ -92,15 +116,6 @@ for runname,inpath in input_runs.items():
 		
 		# add fm_file to sublist
 		sublist.append(control_file)
-
-		# submit 16 files at a time
-#		if len(sublist)==16:
-#			# Set list of fm files as environment variable
-#			os.environ['FM_FLIST']=','.join(sublist)
-#			subprocess.call(['qsub',qsub_script])
-			# Reset submit list
-#			sublist = []
-
 
 # submit any that are left
 if len(sublist)>0:
