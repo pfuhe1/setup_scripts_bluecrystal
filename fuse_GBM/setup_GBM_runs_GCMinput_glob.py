@@ -10,10 +10,11 @@ import queue
 
 # User choice
 # TODO: first call script to produce different calibration files. (src/fuse_processing/generate_param_maps.py
-fuse_decision_ids = [900,902,904]
+#fuse_decision_ids = [900,902,904]
+fuse_decision_ids = [904]
 #calib_choices = ['rundef','calibratedparams']
-calib_choices = ['904_calibrateRand0001']
-gcm_runs = ['NorESM1-HAPPI_Plus15-Future_run001_EWEMBI']
+calib_choices = ['calibrateRand0001']
+#gcm_runs = ['NorESM1-HAPPI_Plus15-Future_run001_EWEMBI']
 setup_name = 'GBM-tiled2-2'
 #ssim = '1980-01-01'
 #esim = '2013-12-31'
@@ -40,7 +41,11 @@ sublist = []
 
 for dec in fuse_decision_ids:
 	for calib in calib_choices:
-		for gcm_id in gcm_runs:
+		gcm_paths = glob.glob('/newhome/pu17449/data/fuse/fuse_GBM_v2-2/input/'+setup_name+'_*_*_*_EWEMBI.nc')
+		for gcm_path in gcm_paths:
+			tmp = gcm_path.split('_')
+			gcm_id = tmp[-4]+'_'+tmp[-3]+'_'+tmp[-2]+'_'+tmp[-1][:-3]
+#		for gcm_id in gcm_runs:
 			sim_name = setup_name+'_'+str(dec)+'_'+calib+'_'+gcm_id
 			print(sim_name)
 
