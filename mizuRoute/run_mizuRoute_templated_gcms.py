@@ -12,7 +12,7 @@ module('load','apps/cdo-1.9.3')
 ##################################################################################
 # Inputs from FUSE simulations:
 
-runlength = 34 # years to run (for checking complete output)
+runlength = 10 # years to run (for checking complete output)
 inbase = '/newhome/pu17449/data/fuse/fuse_GBM_v2-2/output'
 
 # List of decision IDS and calibration choices to loop over
@@ -39,7 +39,7 @@ control_template = '/newhome/pu17449/src/mizuRoute/route/settings/GBM-MERIT.cont
 qsub_script = '/newhome/pu17449/src/setup_scripts/mizuRoute/call_pythonscript.sh' # use this one so we can load python3 module before calling python
 
 # User choice
-override = True
+override = False
 
 # Initialize list of control files
 sublist = []

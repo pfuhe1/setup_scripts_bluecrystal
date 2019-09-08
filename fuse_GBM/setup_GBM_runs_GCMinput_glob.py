@@ -50,9 +50,9 @@ for dec in fuse_decision_ids:
 			print(sim_name)
 
 			if calib == 'rundef':
-				out_file = os.path.join(outputdir,sim_name,'_'+gcm_id+'_runs_def.nc')
+				out_file = os.path.join(outputdir,sim_name+'_runs_def.nc')
 			else:
-				out_file = os.path.join(outputdir,sim_name,'_'+gcm_id+'_runs_pre_dist.nc')
+				out_file = os.path.join(outputdir,sim_name+'_runs_pre_dist.nc')
 
 			# Check if this run has already been computed
 			if not os.path.exists(out_file):
@@ -73,24 +73,24 @@ for dec in fuse_decision_ids:
 				# copy fuse filemanager template and modify
 				if not os.path.exists(fm_file):
 					shutil.copy(fm_template,fm_file)
-				sed_expr =  's#<settings_dir>#'+settingsdir+'#g; '
-				sed_expr += 's#<input_dir>#'+inputdir+'#g; '
-				sed_expr += 's#<output_dir>#'+outputdir+'#g; '
-				sed_expr += 's#<decid>#'+str(dec)+'#g; '
-				sed_expr += 's#<calibid>#'+calib+'#g; '
-				sed_expr += 's#<gcmid>#'+gcm_id+'#g; '
-				sed_expr += 's#<s_sim>#'+ssim+'#g; '
-				sed_expr += 's#<e_sim>#'+esim+'#g; '
-				sed_expr += 's#<s_eval>#'+ssim+'#g; '
-				sed_expr += 's#<e_eval>#'+esim+'#g'
-				cmd = ['sed','-i','-e',sed_expr ,fm_file]
-				print(cmd)
-				subprocess.call(cmd)
+					sed_expr =  's#<settings_dir>#'+settingsdir+'#g; '
+					sed_expr += 's#<input_dir>#'+inputdir+'#g; '
+					sed_expr += 's#<output_dir>#'+outputdir+'#g; '
+					sed_expr += 's#<decid>#'+str(dec)+'#g; '
+					sed_expr += 's#<calibid>#'+calib+'#g; '
+					sed_expr += 's#<gcmid>#'+gcm_id+'#g; '
+					sed_expr += 's#<s_sim>#'+ssim+'#g; '
+					sed_expr += 's#<e_sim>#'+esim+'#g; '
+					sed_expr += 's#<s_eval>#'+ssim+'#g; '
+					sed_expr += 's#<e_eval>#'+esim+'#g'
+					cmd = ['sed','-i','-e',sed_expr ,fm_file]
+					#print(cmd)
+					subprocess.call(cmd)
 		
-			# add fm_file to sublist
-			sublist.append(fm_file)
-		else:
-			print('Output file already exists, skipping:',out_file)
+				# add fm_file to sublist
+				sublist.append(fm_file)
+			else:
+				print('Output file already exists, skipping:',out_file)
 
 
 
