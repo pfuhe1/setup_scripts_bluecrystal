@@ -29,7 +29,7 @@ for fm_file in fm_files:
 	fname = os.path.basename(fm_file)
 	grdcid = fname.split('_')[2]
 	sim_name = 'grdc_'+grdcid
-	logfile = os.path.join(datadir,'/fuse_'+sim_name,logs,fname[3:-4]+'.log')
+	logfile = os.path.join(datadir,'fuse_'+sim_name,'logs',fname[3:-4]+'.log')
 	cmd = ['time',fuseexe,fm_file,sim_name,'calib_sce']
 	print('command',cmd)
 	print('log',logfile)

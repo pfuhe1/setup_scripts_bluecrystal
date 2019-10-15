@@ -86,8 +86,9 @@ with open(f_catchlist,'r') as f:
 					fm_template = os.path.join(templatedir,'fm_catch_grdc_template_25000loops_mswep-p5deg.txt')
 					if os.path.exists(fm_file):
 						os.remove(fm_file)
-		#if os.path.exists(fm_file):	
-		#	os.remove(fm_file)
+		# Overwrite existing FM_FILE (needed to do a clean run)
+		if os.path.exists(fm_file):	
+			os.remove(fm_file)
 		sdir = os.path.join(sim_dir,'settings')
 		if not os.path.exists(sdir): shutil.copytree(settingsdir,sdir)
 		ldir = os.path.join(sim_dir,'logs')
@@ -161,10 +162,10 @@ if len(sublist)>0:
 	print('Submitting jobs',len(sublist))
 	# First export environment variables used in the job
 	os.environ['FM_FLIST']=':'.join(sublist)
-	os.environ['NCPUS'] = ncpus
+	os.environ['NCPUS'] = str(ncpus)
 	os.environ['FUSE_EXE'] = fuse_exe
 	os.environ['DATADIR'] = data_dir
 	print(os.environ['FM_FLIST'])
-	subprocess.call(qsub_cmd+[qsub_script])
+	subprocess.call(qsub_command+[qsub_script])
 else:
 	print('No more simulations to submit!')
