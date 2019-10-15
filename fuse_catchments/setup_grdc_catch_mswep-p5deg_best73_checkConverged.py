@@ -4,7 +4,7 @@
 # Assumes catchment_obsforcings_toBC3.py script has been run to copy the elev_bands and catchment_obsforcing files for each catchment
 # Also requires list of catchment ids to process (f_catchlist)
 
-import os,glob,subprocess,sys,shutil
+import os,glob,subprocess,sys,shutil,socket
 import datetime
 import queue
 
@@ -32,15 +32,30 @@ def check_converged(f_sce):
 # User choice
 fuse_decision_id = 904
 
+
+host=socket.gethostname()
 # Define paths
-templatedir = '/newhome/pu17449/src/fuse_templates'
-settingsdir = os.path.join(templatedir,'settings_dir')
-data_dir = '/newhome/pu17449/data/fuse/grdc_catchments/'
+if host[:7]=='newblue':
+	# Blue Crystal Phase 3
+	templatedir = '/newhome/pu17449/src/fuse_templates'
+	settingsdir = os.path.join(templatedir,'settings_dir')
+	data_dir = '/newhome/pu17449/data/fuse/grdc_catchments/'
+	f_catchlist = os.path.join(templatedir,'catchments_best10_reduced.txt')
+	qsub_script = '/newhome/pu17449/src/setup_scripts/fuse_catchments/call_pythonscript.sh' 
+	fuse_exe = '/newhome/pu17449/src/fuse/bin/fuse.exe'
+	qsub_command = ['qsub','-v','FM_FLIST,NCPUS,DATADIR,FUSE_EXE']
+	ncpus = 16
+elif host[:8] == 'bc4login':
+	# Blue Crystal Phase 4
+	templatedir = '/mnt/storage/home/pu17449/src/fuse_templates'
+	settingsdir = os.path.join(templatedir,'settings_dir')
+	data_dir = '/mnt/storage/scratch/pu17449/fuse/grdc_catchments/'
+	f_catchlist = os.path.join(templatedir,'catchments_best10_reduced.txt')
+	qsub_script = '/mnt/storage/home/pu17449/src/setup_scripts/fuse_catchments/call_pythonscript_bc4.sh' 
+	fuse_exe =  '/mnt/storage/home/pu17449/src/fuse/bin/fuse.exe'
+	qsub_command = ['sbatch','--export','FM_FLIST,NCPUS,DATADIR,FUSE_EXE']
+	ncpus = 28
 
-
-f_catchlist = os.path.join(templatedir,'catchments_best10_reduced.txt')
-#qsub_script = '/newhome/pu17449/src/fuse/setup_scripts/qsub_grdc_catch.py'
-qsub_script = '/newhome/pu17449/src/setup_scripts/fuse_catchments/call_pythonscript.sh' # use this one so we can load python3 module before calling python
 sublist = []
 
 with open(f_catchlist,'r') as f:
@@ -144,8 +159,12 @@ with open(f_catchlist,'r') as f:
 # submit any that are left
 if len(sublist)>0:
 	print('Submitting jobs',len(sublist))
+	# First export environment variables used in the job
 	os.environ['FM_FLIST']=':'.join(sublist)
+	os.environ['NCPUS'] = ncpus
+	os.environ['FUSE_EXE'] = fuse_exe
+	os.environ['DATADIR'] = data_dir
 	print(os.environ['FM_FLIST'])
-	subprocess.call(['qsub','-v','FM_FLIST',qsub_script])
+	subprocess.call(qsub_cmd+[qsub_script])
 else:
 	print('No more simulations to submit!')
