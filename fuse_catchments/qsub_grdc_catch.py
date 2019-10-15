@@ -19,7 +19,7 @@ print(datetime.datetime.now())
 #execfile('/cm/local/apps/environment-modules/3.2.6//Modules/3.2.6/init/python')
 # python3
 #exec(open('/cm/local/apps/environment-modules/3.2.6//Modules/3.2.6/init/python').read())
-exec(open('/newhome/pu17449/src/fuse/setup_scripts/module_python3_init').read())
+exec(open('/newhome/pu17449/src/setup_scripts/module_python3_init').read())
 module('load','languages/intel-compiler-16-u2')
 module('load','libraries/intel_builds/netcdf-4.3')
 module('load','libraries/intel_builds/hdf5-1.8.12')

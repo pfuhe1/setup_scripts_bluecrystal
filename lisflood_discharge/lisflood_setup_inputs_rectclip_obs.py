@@ -98,8 +98,8 @@ f_par_template = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_Rect
 
 # Output dirs
 lisflood_basedir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest'
-lisflood_dischargedir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/dischargeIRF'
-lisflood_pardir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/parfilesIRF'
+lisflood_dischargedir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/dischargeobs'
+lisflood_pardir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/parfilesobs'
 
 if not os.path.exists(lisflood_dischargedir):
 	os.mkdir(lisflood_dischargedir)
@@ -192,112 +192,112 @@ for feature in points:
 ###############################################################################################
 # Main script: Loop over discharge files and write out discharge values
 #
-for model in gcms:
-	fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrateRand0001_'+model+'_*_EWEMBI/q_*.nc')
-	for f_discharge in glob.glob(fpattern):
-		#f_discharge = '/home/pu17449/data2/mizuRoute/merithydro/q_GBM_MERIT-Hydro_1988-1-1.nc'
-		fname = os.path.basename(f_discharge)
-		print(fname)
-		runname = fname[2:-7]
-		year = int(runname[-4:])
-		print(runname,year)
-		f_csv = os.path.join(lisflood_dischargedir,runname+'.csv')
-		f_bdy = os.path.join(lisflood_dischargedir,runname+'.bdy')
-		f_par = os.path.join(lisflood_pardir,runname+'.par')
-		if not os.path.exists(f_bdy):
+#fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrateRand0001_'+model+'_*_EWEMBI/q_*.nc')
+fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated?','q_*.nc')
+for f_discharge in glob.glob(fpattern):
+	#f_discharge = '/home/pu17449/data2/mizuRoute/merithydro/q_GBM_MERIT-Hydro_1988-1-1.nc'
+	fname = os.path.basename(f_discharge)
+	print(fname)
+	runname = fname[2:-7]
+	year = int(runname[-4:])
+	print(runname,year)
+	f_csv = os.path.join(lisflood_dischargedir,runname+'.csv')
+	f_bdy = os.path.join(lisflood_dischargedir,runname+'.bdy')
+	f_par = os.path.join(lisflood_pardir,runname+'.par')
+	if not os.path.exists(f_bdy):
 
-			discharge_dict = {}
-			# Read mizuroute output file for discharge values
-			with Dataset(f_discharge,'r') as f_in:
-				linkids = f_in.variables['reachID'][:]
-				runoff_vals = f_in.variables['dlayRunoff']
-				discharge_vals = f_in.variables['IRFroutedRunoff']
-				times = f_in.variables['time']
-				dates = num2date(times[:],times.units)
+		discharge_dict = {}
+		# Read mizuroute output file for discharge values
+		with Dataset(f_discharge,'r') as f_in:
+			linkids = f_in.variables['reachID'][:]
+			runoff_vals = f_in.variables['dlayRunoff']
+			discharge_vals = f_in.variables['IRFroutedRunoff']
+			times = f_in.variables['time']
+			dates = num2date(times[:],times.units)
 
-				# Subset data to be within startdate-endate
-				startdate = datetime.datetime(year,startmon,1)
-				enddate   = datetime.datetime(year,endmon+1,1)
-				startindex = np.where(dates==startdate)[0][0]
-				endindex = np.where(dates==enddate)[0][0]
-				discharge_vals = discharge_vals[startindex:endindex,:]
-				runoff_vals = runoff_vals[startindex:endindex,:]
-				dates = dates[startindex:endindex]
-				datestrings = map(format_date,dates)
-				ntimes = len(dates)
+			# Subset data to be within startdate-endate
+			startdate = datetime.datetime(year,startmon,1)
+			enddate   = datetime.datetime(year,endmon+1,1)
+			startindex = np.where(dates==startdate)[0][0]
+			endindex = np.where(dates==enddate)[0][0]
+			discharge_vals = discharge_vals[startindex:endindex,:]
+			runoff_vals = runoff_vals[startindex:endindex,:]
+			dates = dates[startindex:endindex]
+			datestrings = map(format_date,dates)
+			ntimes = len(dates)
 
-				print('shapes',dates.shape,discharge_vals.shape,runoff_vals.shape)
+			print('shapes',dates.shape,discharge_vals.shape,runoff_vals.shape)
 
-				print('points outside:',points_outside.keys())
-				print('writing outside points')
-				for link,pt in points_outside.items():
+			print('points outside:',points_outside.keys())
+			print('writing outside points')
+			for link,pt in points_outside.items():
+				dslink = ds_segments[link]
+				seg_index = seg_index_map[link]
+				#print('link,ds',link,dslink)
+				try:
+					if dslink not in discharge_dict:
+						discharge_dict[dslink] = [segids_mizu[seg_index],pt[0],pt[1],link]+list(discharge_vals[:,seg_index])
+					else: # Add together discharge for two tributaries converging at this point
+						row = discharge_dict[dslink]
+						discharge_dict[dslink] = [str(row[0])+'/'+str(segids_mizu[seg_index]),pt[0],pt[1],str(row[0])+'/'+str(link)]+list(np.array(row[4:])+discharge_vals[:,seg_index])
+				except:
+					raise Exception('Error writing discharge for outside link',link)
+			print('writing inside points')
+			print('points inside:',points_inside.keys())
+			for link,pt in points_inside.items():
+				try:
 					dslink = ds_segments[link]
 					seg_index = seg_index_map[link]
-					#print('link,ds',link,dslink)
-					try:
-						if dslink not in discharge_dict:
-							discharge_dict[dslink] = [segids_mizu[seg_index],pt[0],pt[1],link]+list(discharge_vals[:,seg_index])
-						else: # Add together discharge for two tributaries converging at this point
-							row = discharge_dict[dslink]
-							discharge_dict[dslink] = [str(row[0])+'/'+str(segids_mizu[seg_index]),pt[0],pt[1],str(row[0])+'/'+str(link)]+list(np.array(row[4:])+discharge_vals[:,seg_index])
-					except:
-						raise Exception('Error writing discharge for outside link',link)
-				print('writing inside points')
-				print('points inside:',points_inside.keys())
-				for link,pt in points_inside.items():
-					try:
-						dslink = ds_segments[link]
-						seg_index = seg_index_map[link]
-						if dslink not in discharge_dict:
-							discharge_dict[dslink] = [segids_mizu[seg_index],pt[0],pt[1],link]+list(runoff_vals[:,seg_index])
-						else: # Add together discharge for two tributaries converging at this point
-							row = discharge_dict[dslink]
-							discharge_dict[dslink] = [str(row[0])+'/'+str(segids_mizu[seg_index]),pt[0],pt[1],str(row[0])+'/'+str(link)]+list(np.array(row[4:])+runoff_vals[:,seg_index]) 
-					except:
-						print('Error writing discharge for inside link',link,pt[0],pt[1])
-						raise
+					if dslink not in discharge_dict:
+						discharge_dict[dslink] = [segids_mizu[seg_index],pt[0],pt[1],link]+list(runoff_vals[:,seg_index])
+					else: # Add together discharge for two tributaries converging at this point
+						row = discharge_dict[dslink]
+						discharge_dict[dslink] = [str(row[0])+'/'+str(segids_mizu[seg_index]),pt[0],pt[1],str(row[0])+'/'+str(link)]+list(np.array(row[4:])+runoff_vals[:,seg_index]) 
+				except:
+					print('Error writing discharge for inside link',link,pt[0],pt[1])
+					raise
 
 
-			print('writing to csv file')
-			with open(f_csv,'w') as f:
-				fwriter = csv.writer(f)
-				fwriter.writerow(['linkno(d8)','x','y','linkno (d4)']+list(datestrings))
-				for row in discharge_dict.values():
-					fwriter.writerow(row)
+		print('writing to csv file')
+		with open(f_csv,'w') as f:
+			fwriter = csv.writer(f)
+			fwriter.writerow(['linkno(d8)','x','y','linkno (d4)']+list(datestrings))
+			for row in discharge_dict.values():
+				fwriter.writerow(row)
 
-			print('writing to bdy file')
-			write_bdy(f_bdy,f_csv,ntimes)
-		else:
-			print('file exists, skipping:',f_bdy)
+		print('writing to bdy file')
+		write_bdy(f_bdy,f_csv,ntimes)
+	else:
+		print('file exists, skipping:',f_bdy)
 
-		# Write bci file (just needs the list of points, so can use any csv file, only create once)
-		if not os.path.exists(f_bci):
-			print('writing to bci file')
-			write_bci(f_bci,f_csv)
+	# Write bci file (just needs the list of points, so can use any csv file, only create once)
+	if not os.path.exists(f_bci):
+		print('writing to bci file')
+		write_bci(f_bci,f_csv)
 
-		bci_relative = f_bci[len(lisflood_basedir)+1:]
-		bdy_relative = f_bdy[len(lisflood_basedir)+1:]
+	bci_relative = f_bci[len(lisflood_basedir)+1:]
+	bdy_relative = f_bdy[len(lisflood_basedir)+1:]
 
-		if ntimes is None:
-			tmp = open(f_csv,'r').readline()
-			ntimes = len(tmp.split(','))-4
-		sim_time = str(ntimes*86400)
-		
-
-		if not os.path.exists(f_par):
-			# copy template and modify
-			shutil.copy(f_par_template,f_par)
-			sed_expr = 's#<RUNNAME>#'+runname+'#g; '
-			sed_expr += 's#<SIMTIME>#'+sim_time+'#g; '
-			sed_expr += 's#<BCI>#'+bci_relative+'#g; '
-			sed_expr += 's#<BDY>#'+bdy_relative+'#g'
-			print(sed_expr)
-			cmd = ['sed','-i','-e',sed_expr ,f_par]
-			subprocess.call(cmd)
+	if ntimes is None:
+		tmp = open(f_csv,'r').readline()
+		ntimes = len(tmp.split(','))-4
+	sim_time = str(ntimes*86400)
 	
 
-		# add par to sublist
-		sublist.append(f_par)
+	if not os.path.exists(f_par):
+		# copy template and modify
+		shutil.copy(f_par_template,f_par)
+		sed_expr = 's#<RUNNAME>#'+runname+'#g; '
+		sed_expr += 's#<SIMTIME>#'+sim_time+'#g; '
+		sed_expr += 's#<BCI>#'+bci_relative+'#g; '
+		sed_expr += 's#<BDY>#'+bdy_relative+'#g'
+		print(sed_expr)
+		cmd = ['sed','-i','-e',sed_expr ,f_par]
+		subprocess.call(cmd)
+
+
+	# add par to sublist
+	sublist.append(f_par)
 
 # submit any that are left
 if len(sublist)>0:

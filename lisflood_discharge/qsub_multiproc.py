@@ -8,6 +8,8 @@ import datetime
 from convert_output_totiff import convert_to_tif_v2
 
 def call_subproc(cmd,sim_name,logfile):
+	print('command',cmd)
+	print('log',logfile)
 	ret = subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
 	# converts to tiff, relies on output being in folder relative to working directory
 	convert_to_tif_v2(sim_name,sim_name)
@@ -30,8 +32,6 @@ for control_file in control_files:
 	sim_name =fname[:-4]
 	logfile = os.path.join('/newhome/pu17449/data/lisflood/logs/'+sim_name+'.log')
 	cmd = ['time',exefile,'-v',control_file]
-	print('command',cmd)
-	print('log',logfile)
 	#ret = pool.apply_async(subprocess.call,cmd,{'stdout':open(logfile,'w') ,'stderr':subprocess.STDOUT})
 	#subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
 	ret = pool.apply_async(call_subproc,[cmd,sim_name,logfile])

@@ -5,4 +5,4 @@
 #PBS -l walltime=23:50:00
 #PBS -j oe
 module load languages/python-3.3.2
-python /newhome/pu17449/src/fuse/setup_scripts/qsub_grdc_catch.py
+python /newhome/pu17449/src/setup_scripts/fuse_catchments/qsub_grdc_catch.py
