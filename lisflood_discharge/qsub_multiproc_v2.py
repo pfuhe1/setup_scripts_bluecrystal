@@ -20,17 +20,22 @@ def call_subproc(cmd,sim_name,logfile):
 print('Start:',datetime.datetime.now())
 
 control_files = os.environ['CONTROL_FLIST'].split(':')
+exefile = os.environ['EXEFILE']
+# Work out number of concurrent processes to run, based on node size and number of processes per job
+nodesize = int(os.environ['NODESIZE'])
+jobsize = int(os.environ['OMP_NUM_THREADS'])
+logdir = os.environ['LOGDIR']
+numprocesses = int(nodesize/jobsize)
+
 print('running simulations',len(control_files))
 print(os.environ['CONTROL_FLIST'])
-#pool = multiprocessing.Pool(processes=2) # since node has 16 cores, and OMP_NUM_THREADS=8
-pool = multiprocessing.Pool(processes=4) # since node has 16 cores, and OMP_NUM_THREADS=2
-exefile = '/newhome/pu17449/src/pfu_d8subgrid/lisflood_double_rect_constchanwidth'
+pool = multiprocessing.Pool(processes=numprocesses) # since node has 16 cores, and OMP_NUM_THREADS=2
 
 for control_file in control_files:
 	# Todo, could add check if this simulation has already been run
 	fname = os.path.basename(control_file)
 	sim_name =fname[:-4]
-	logfile = os.path.join('/newhome/pu17449/data/lisflood/logs/'+sim_name+'.log')
+	logfile = os.path.join(logdir,sim_name+'.log')
 	cmd = ['time',exefile,'-v',control_file]
 	#ret = pool.apply_async(subprocess.call,cmd,{'stdout':open(logfile,'w') ,'stderr':subprocess.STDOUT})
 	#subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
