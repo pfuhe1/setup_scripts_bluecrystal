@@ -3,7 +3,10 @@
 # Peter Uhe May 15 2019
 # 
 
-import os,subprocess,multiprocessing
+import os,subprocess
+import multiprocessing
+# Try this 
+#from concurrent.futures import ProcessPoolExecutor
 import datetime
 from convert_output_totiff import convert_to_tif_v2
 
@@ -20,13 +23,14 @@ def call_subproc(cmd,sim_name,logfile):
 print('Start:',datetime.datetime.now())
 
 control_files = os.environ['CONTROL_FLIST'].split(':')
-exefile = os.environ['EXEFILE']
+exefile = os.environ['EXE_FILE']
 # Work out number of concurrent processes to run, based on node size and number of processes per job
-nodesize = int(os.environ['NODESIZE'])
+nodesize = int(os.environ['NCPUS'])
 jobsize = int(os.environ['OMP_NUM_THREADS'])
 logdir = os.environ['LOGDIR']
 numprocesses = int(nodesize/jobsize)
 
+print('Running',numprocesses,'simultaneous processes using',jobsize,'cores each')
 print('running simulations',len(control_files))
 print(os.environ['CONTROL_FLIST'])
 pool = multiprocessing.Pool(processes=numprocesses) # since node has 16 cores, and OMP_NUM_THREADS=2
