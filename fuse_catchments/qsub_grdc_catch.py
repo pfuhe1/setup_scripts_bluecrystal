@@ -17,12 +17,12 @@ print('Start',datetime.datetime.now())
 
 #fm_files = sys.argv[1:]
 fm_files = os.environ['FM_FLIST'].split(':')
-ncpus = os.environ['NCPUS']
+ncpus = int(os.environ['NCPUS'])
 datadir = os.environ['DATADIR']
 fuseexe = os.environ['FUSE_EXE']
 print('running simulations',len(fm_files))
 print(os.environ['FM_FLIST'])
-pool = multiprocessing.Pool(processes=16)
+pool = multiprocessing.Pool(processes=ncpus)
 
 for fm_file in fm_files:
 	# Todo, could add check if this simulation has already been run

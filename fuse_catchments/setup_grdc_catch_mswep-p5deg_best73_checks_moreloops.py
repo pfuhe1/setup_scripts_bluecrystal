@@ -25,12 +25,12 @@ def success_sce_output(f_sce,nfromend=4):
 
 def check_converged(f_sce):
 	# Search for 'EXCEEDED' in sce output
-	cmd = ['grep','EXCEEDED',f_sce]
+	cmd = ['grep','10000 EXCEEDED',f_sce]
 	ret = subprocess.call(cmd) # Returns 0 if found exceeed
 	return  ret
 
 # User choice
-fuse_decision_id = 900
+fuse_decision_id = 902
 
 # For bc4 only: it may (or may not) be better to submit to the serial queue
 serial = True 
@@ -60,7 +60,7 @@ elif host[:8] == 'bc4login':
 	if serial:
 		qsub_script = '/mnt/storage/home/pu17449/src/setup_scripts/fuse_catchments/call_pythonscript_bc4serial.sh' 
 		ncpus = 1
-		nperjob = 4
+		nperjob = 1
 	else:
 		qsub_script = '/mnt/storage/home/pu17449/src/setup_scripts/fuse_catchments/call_pythonscript_bc4.sh' 
 		ncpus = 28
@@ -76,7 +76,8 @@ with open(f_catchlist,'r') as f:
 		print(grdcid)
 		sim_dir = os.path.join(data_dir,'fuse_grdc_'+grdcid)
 
-		fm_template = os.path.join(templatedir,'fm_catch_grdc_template-mswep-p5deg.txt')
+		#fm_template = os.path.join(templatedir,'fm_catch_grdc_template-mswep-p5deg.txt')
+		fm_template = os.path.join(templatedir,'fm_catch_grdc_template_25000loops_mswep-p5deg.txt')
 		fm_file = os.path.join(sim_dir,'fm_grdc_'+grdcid + '_dec_'+str(fuse_decision_id)+'_mswep-p5deg.txt')
 		# Paths for catchment
 		idir = os.path.join(sim_dir,'input')
@@ -92,10 +93,10 @@ with open(f_catchlist,'r') as f:
 					print('Calibration already completed, skipping')
 					continue
 				else: # Try more iterations
-					print('Calibration previously failed, retrying with more iterations')
-					fm_template = os.path.join(templatedir,'fm_catch_grdc_template_25000loops_mswep-p5deg.txt')
-					if os.path.exists(fm_file):
-						os.remove(fm_file)
+					print('Calibration previously failed, retrying')
+					#fm_template = os.path.join(templatedir,'fm_catch_grdc_template_25000loops_mswep-p5deg.txt')
+					#if os.path.exists(fm_file):
+					#	os.remove(fm_file)
 		# Overwrite existing FM_FILE (needed to do a clean run)
 		if os.path.exists(fm_file):	
 			os.remove(fm_file)
