@@ -90,14 +90,20 @@ driver = ogr.GetDriverByName("ESRI Shapefile")
 # Parameters for this domain
 ###############################################################################################
 # extent xmin, xmax, ymin, ymax
-extent = [89.03,89.95,24.5,26]
-extentstr = str(extent)[1:-1]
-res = 0.0025 # in degrees
+#extent = [89.03,89.95,24.5,26]
+#regname = 'rectclip-manndepth'
+#regname = 'rectclip-maskfpbank'
 ds_buffer = 0.1 # buffer around each reach to set the downstream boundary
 
-# Give this domain a name
-regname = 'rectclip'
+
+extent = [89.081,90.3,24,26.5]
+regname = 'rectlarger-maskbank'
+ds_buffer = 0.3 # buffer around each reach to set the downstream boundary
+
+extentstr = str(extent)[1:-1]
+res = 0.0025 # in degrees
 resname = '9sd8'
+#resname = '9sd4'
 clipname = regname+'_'+resname
 
 # Domain to use
@@ -112,6 +118,7 @@ gcms = ['NorESM1-HAPPI'] #'ECHAM6-3-LR',
 
 sublist = []
 
+dryrun = True
 
 # Specify directories
 ###############################################################################################
@@ -119,6 +126,7 @@ sublist = []
 mizuroute_outdir = '/newhome/pu17449/data/mizuRoute/output'
 # Lisflood directories
 lfdir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_'+clipname
+resultdir = os.path.join(lfdir,'results')
 streamdir = os.path.join(lfdir,'streamnet')
 lf_dischargedir = os.path.join(lfdir,'dischargeobs')
 lf_pardir = os.path.join(lfdir,'parfilesobs')
@@ -130,21 +138,46 @@ if not os.path.exists(lf_pardir):
 # Specify file paths
 ###############################################################################################
 # Shapefiles containing up/downstream points in each river segment/link
-f_downstream    = os.path.join(streamdir,clipname+'_acc_downstream.shp')
-f_ntdstream    = os.path.join(streamdir,clipname+'_acc_next-to-downstream.shp')
-f_upstream_clip = os.path.join(streamdir,clipname+'_acc_upstream.shp')
-f_upstream_all  = os.path.join(streamdir,'strn_network_'+resname+'_acc_upstream.shp')
+# HACK to use d8 discharge locations
+resname2 = resname[:2]+'d8'
+# Also remove the end bit of the clipname e.g. rectclip-maskbank -> rectclip-'manndepth'
+#clipname2 = regname.split('-')[0]+'-manndepth_'+resname2
+clipname2 = regname.split('-')[0]+'_'+resname2
+#streamdir = os.path.join(lfdir,'..','lisfloodfp_'+clipname2,'streamnet')
+f_downstream    = os.path.join(streamdir,clipname2+'_acc_downstream.shp')
+f_ntdstream    = os.path.join(streamdir,clipname2+'_acc_next-to-downstream.shp')
+f_upstream_clip = os.path.join(streamdir,clipname2+'_acc_upstream.shp')
+f_upstream_all  = os.path.join(streamdir,'strn_network_'+resname2+'_acc_upstream.shp')
 
 # parameter file template for lisflood
 # TODO, at the moment this is created manually, but could be automated a bit more
 #f_par_template = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/077_template.par'
-f_par_template = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_rectclip_9sd8/077_template.par'
+f_par_template = os.path.join(lfdir,'077_template.par')
 # output bci file (only one needed to describe the discharge points of the network)
 f_bci = os.path.join(lf_dischargedir,clipname+'.bci')
 print('bcifile:',f_bci)
 
-# Qsub file for HPC queue
-qsub_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript.sh'
+# Setup for qsub submission
+logdir = '/newhome/pu17449/data/lisflood/logs'
+qsub_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_v2.sh'
+control_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v3.py'
+# EXE for d4 version of the code (from the trunk)
+#exe_file = '/newhome/pu17449/src/lisfloodfp_trunk/lisflood_double_rect_trunk-r647'
+# EXE for the d8 version of the code:
+exe_file = '/newhome/pu17449/src/pfu_d8subgrid/lisflood_double_rect_r688'
+ncpus = 16 # (node size is 16) 
+jobsize = 4 # number of processors per simulation
+simsperjob = 24
+logdir = logdir = '/newhome/pu17449/data/lisflood/logs'
+
+# Export common environment variables
+os.environ['LISFLOOD_DIR'] = lfdir
+os.environ['EXE_FILE'] = exe_file
+os.environ['LOGDIR'] = logdir
+os.environ['CONTROL_SCRIPT'] = control_script
+os.environ['NCPUS']=str(ncpus)
+os.environ['OMP_NUM_THREADS'] = str(jobsize)
+os.environ['RESULTDIR'] = resultdir
 
 # File, storing network attributes 
 f_network        = '/newhome/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
@@ -170,7 +203,11 @@ slope      = {}
 
 # First load upstream points shapefile
 dataSource = driver.Open(f_upstream_clip, 0)
-points = dataSource.GetLayer()
+try:
+	points = dataSource.GetLayer()
+except:
+	print('Error, failed to open streamnet file: '+f_upstream_clip)
+	raise
 print('Opened upstream points in domain',f_upstream_clip)
 for feature in points:
 	# Get attributes:
@@ -275,7 +312,8 @@ with Dataset(f_network,'r') as f:
 # Main script: Loop over discharge files and write out discharge values
 #
 #fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrateRand0001_'+model+'_*_EWEMBI/q_*.nc')
-fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated?','q_*.nc')
+#fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated?','q_*.nc')
+fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated1','q_*.nc')
 for f_discharge in glob.glob(fpattern):
 	#f_discharge = '/home/pu17449/data2/mizuRoute/merithydro/q_GBM_MERIT-Hydro_1988-1-1.nc'
 	fname = os.path.basename(f_discharge)
@@ -287,8 +325,8 @@ for f_discharge in glob.glob(fpattern):
 	f_bdy = os.path.join(lf_dischargedir,runname+'.bdy')
 	f_par = os.path.join(lf_pardir,runname+'.par')
 
-	resultdir = os.path.join(lfdir,runname)
-	maxtif = os.path.join(resultdir,runname+'-max.tif') # Only generated after the run is finished
+	outdir = os.path.join(resultdir,runname)
+	maxtif = os.path.join(outdir,runname+'-max.tif') # Only generated after the run is finished
 	if os.path.exists(maxtif):
 		print('Result already exists, skipping')
 		continue
@@ -417,11 +455,17 @@ for f_discharge in glob.glob(fpattern):
 	# add par to sublist
 	sublist.append(f_par)
 
-	if len(sublist)>=30:
+	if len(sublist)>=simsperjob:
 		print('Submitting jobs',len(sublist))
 		os.environ['CONTROL_FLIST']=':'.join(sublist)
 		print(os.environ['CONTROL_FLIST'])
-		subprocess.call(['qsub','-v','CONTROL_FLIST',qsub_script])
+#		subprocess.call(['qsub','-v','CONTROL_FLIST',qsub_script])
+		qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
+		print(' '.join(qsub_cmd))
+		if not dryrun:
+			subprocess.call(qsub_cmd)
+		else:
+			print('Dry run, not submitting')
 		# reset sublist 
 		sublist = []
 
@@ -430,7 +474,12 @@ if len(sublist)>0:
 	print('Submitting jobs',len(sublist))
 	os.environ['CONTROL_FLIST']=':'.join(sublist)
 	print(os.environ['CONTROL_FLIST'])
-	subprocess.call(['qsub','-v','CONTROL_FLIST',qsub_script])
+	qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
+	print(' '.join(qsub_cmd))
+	if not dryrun:
+		subprocess.call(qsub_cmd)
+	else:
+		print('Dry run, not submitting')
 	#subprocess.call([qsub_script])
 else:
 	print('No more simulations to submit!')
