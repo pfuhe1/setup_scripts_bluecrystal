@@ -16,20 +16,12 @@ hostname = socket.gethostname()
 
 # Parameters for this domain
 ###############################################################################################
-# extent xmin, xmax, ymin, ymax
-extent = [89.03,89.95,24.5,26]
-extentstr = str(extent)[1:-1]
-res = 0.0025 # in degrees
-ds_buffer = 0.1 # buffer around each reach to set the downstream boundary
 
-# Give this domain a name
-regname = 'rectclip'
-resname = '9sd4'
+#regname = 'rectclip-manndepth'
+#regname = 'rectclip-maskfpbank'
+regname  = 'rectlarger-maskbank'
+resname  = '9sd8'
 clipname = regname+'_'+resname
-
-# Domain to use
-#xbound = [89,90]
-#ybound = [24.5,26]
 
 startmon = 4 # april (1)
 endmon = 10 # october (31)
@@ -67,10 +59,10 @@ elif hostname[:9]=='bp1-login':
 	# Qsub file for HPC queue
 	qsub_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_bp.sh'
 	control_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v3.py'
-	#exe_file = '/home/pu17449/bin/lisflood_double_rect_r688'
-	exe_file = '/home/pu17449/bin/lisflood_double_rect_trunk-r647'
-	ncpus = 12 # (node size is 24) # number of processors per job
-	jobsize = 12 # number of processors per simulation
+	exe_file = '/home/pu17449/bin/lisflood_double_rect_r688'
+	#exe_file = '/home/pu17449/bin/lisflood_double_rect_trunk-r647'
+	ncpus = 4 # (node size is 24) # number of processors per job
+	jobsize = 4 # number of processors per simulation
 	simsperjob = 1
 	logdir = '/work/pu17449/lisflood/logs'
 

@@ -1,7 +1,7 @@
 #!/cm/shared/languages/python-3.3.2/bin/python
 # submit script for submission of mizuRoute simualtions
 # Peter Uhe Oct 29 2019
-# 
+#
 
 # call this script from 'run_mizuRoute_templated_mswep050calib.py which creates a qsub job to submit to the HPC queue
 # This script is actually called from 'call_pythonscript.sh' (which is needed to load modules before calling the script)
@@ -12,7 +12,7 @@ import datetime
 def call_subproc(cmd,logfile):
 	subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
 
-# Print start time 
+# Print start time
 print('Starting:',datetime.datetime.now())
 
 # Get environment variables

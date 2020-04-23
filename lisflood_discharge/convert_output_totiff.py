@@ -62,7 +62,7 @@ def convert_to_tif_v3(folder,sim_name,exts=['wd','wdfp','elev','dem','inittm','m
 if __name__=='__main__':
 	# test case
 	#convert_to_tif_v2('/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/GBM-tiled2-2_904_calibrateRand0001_NorESM1-HAPPI_All-Hist_run018_EWEMBI_2012','GBM-tiled2-2_904_calibrateRand0001_NorESM1-HAPPI_All-Hist_run018_EWEMBI_2012')
-	basedir = '/home/pu17449/work/lisflood/lisfloodfp_rectclip_9sd4/results'
+	basedir = '/home/pu17449/work/lisflood/lisfloodfp_rectclip-manndepth_9sd8/results'
 	# test case 2:
 	for outdir in glob.glob(basedir+'/*'):
 		sim_name = os.path.basename(outdir)

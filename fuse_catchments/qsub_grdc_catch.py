@@ -1,7 +1,7 @@
 #!/cm/shared/languages/python-3.3.2/bin/python
 # submit script for FUSE calibration of GRDC catchments
 # Peter Uhe May 15 2019
-# 
+#
 
 # call this script from 'setup_grdc_catch_best73.py which creates a qsub job to submit to the HPC queue
 # This script is actually called from 'call_pythonscript.sh' (which is needed to load the python module before calling the script)
