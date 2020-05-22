@@ -20,11 +20,11 @@ import cartopy.feature as cfeature
 dec = 902
 setup_name = 'GBM-p1deg'
 # Name of observations (ideally would be the same, but they are renamed here)
-calibversion0    = 'mswep-p1deg'  # string for observations used in catchment calibration
-calibversion1 = 'MSWEP2-2-ERA5-calibrated' # string for observations used in GBM gridded model
+#calibversion0    = 'mswep-p1deg'  # string for observations used in catchment calibration
+#calibversion1 = 'MSWEP2-2-ERA5-calibrated' # string for observations used in GBM gridded model
 # Version where full time period of each catchments were used for calibration
-#calibversion0 = 'mswep-p1deg-longeval'  # string for calibration observations used in catchment calibration
-#calibversion1 = 'MSWEP2-2-ERA5-longcalib' # string for calibration observations used in GBM gridded model
+calibversion0 = 'mswep-p1deg-longeval'  # string for calibration observations used in catchment calibration
+calibversion1 = 'MSWEP2-2-ERA5-longcalib' # string for calibration observations used in GBM gridded model
 
 
 # for bc3:
@@ -118,9 +118,11 @@ for choice in range(3):
 			if len(rmse)>0:
 				besttry = rmse.argmin()
 				numtrials = len(rmse)
-				print('best parameter is from trial',besttry,'of',numtrials)
+				print('best parameter (lowest RMSE) is from trial',besttry,'of',numtrials)
+				print('NOTE: now using last trial when parameters have converged, even if not the lowest RMSE')
 				for param in param_list:
-					catch_param = f.variables[param][besttry]
+					#catch_param = f.variables[param][besttry]
+					catch_param = f.variables[param][numtrials-1]
 					for point in indices:
 						param_maps[param][point[0],point[1]] = catch_param
 			else:

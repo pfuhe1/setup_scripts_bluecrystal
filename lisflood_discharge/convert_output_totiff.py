@@ -22,7 +22,7 @@ def convert_to_tif(fpattern):
 		print(f)
 		if f[-4:] != '.tif':
 			dirname,fname = f.split('/')
-			start,end = fname.split('.') 
+			start,end = fname.split('.')
 			f_tif = os.path.join(dirname,start+'-'+end+'.tif')
 			convert_single(f,f_tif)
 
@@ -42,7 +42,7 @@ def convert_to_tif_v2(folder,sim_name,exts=['wd','wdfp','elev','dem','inittm','m
 				convert_single(f,f_tif)
 
 # convert_to_tif_v3 uses parallel processing
-def convert_to_tif_v3(folder,sim_name,exts=['wd','wdfp','elev','dem','inittm','max','maxtm','mxe','totaltm'],jobsize=1):
+def convert_to_tif_v3(folder,sim_name,exts=['wd','wdfp','elev','dem','inittm','max','maxtm','mxe','totaltm','Fwidth','Qx','Qy','Qcx','Qcy'],jobsize=1):
 	if os.path.exists(folder):
 		print('Converting results to tiff:',folder)
 	else:
@@ -50,10 +50,13 @@ def convert_to_tif_v3(folder,sim_name,exts=['wd','wdfp','elev','dem','inittm','m
 		return
 	# First check if simuation is finished (use '.max' file as a flag)
 	maxfile = os.path.join(folder,sim_name+'.max')
-	if os.path.exists(maxfile):
+	maxtif  = os.path.join(folder,sim_name+'-max.tif')
+	if os.path.exists(maxfile) or os.path.exists(maxtif):
 		with ProcessPoolExecutor(max_workers=jobsize) as pool:
 			for ext in exts:
-				for f in glob.glob(os.path.join(folder,sim_name+'*.'+ext)):
+				fpattern = os.path.join(folder,sim_name+'*.'+ext)
+				print('debug: converting',fpattern)
+				for f in glob.glob(fpattern):
 					start = f.split('.'+ext)[0]
 					f_tif = start+'-'+ext+'.tif'
 					pool.submit(convert_single,f,f_tif)
@@ -62,8 +65,9 @@ def convert_to_tif_v3(folder,sim_name,exts=['wd','wdfp','elev','dem','inittm','m
 if __name__=='__main__':
 	# test case
 	#convert_to_tif_v2('/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/GBM-tiled2-2_904_calibrateRand0001_NorESM1-HAPPI_All-Hist_run018_EWEMBI_2012','GBM-tiled2-2_904_calibrateRand0001_NorESM1-HAPPI_All-Hist_run018_EWEMBI_2012')
-	basedir = '/home/pu17449/work/lisflood/lisfloodfp_rectclip-manndepth_9sd8/results'
+	#basedir = '/home/pu17449/work/lisflood/lisfloodfp_rectclip-manndepth_9sd8/results'
+	basedir = '/work/pu17449/lisflood/lisfloodfp_rectlarger-maskbank_9sd8/results'
 	# test case 2:
 	for outdir in glob.glob(basedir+'/*'):
 		sim_name = os.path.basename(outdir)
-		convert_to_tif_v2(outdir,sim_name)
+		convert_to_tif_v3(outdir,sim_name,jobsize=4)

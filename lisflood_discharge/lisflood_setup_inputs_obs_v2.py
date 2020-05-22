@@ -1,20 +1,20 @@
 # lisflood_setup_inputs_obs_v2.py
 # Takes input from mizuRoute discharge, river network information and produces lisflood boundary conditions
-# Requires running first lisflood_discharge_inputs_qgis.py to produce shapefiles (streamnet) 
+# Requires running first lisflood_discharge_inputs_qgis.py to produce shapefiles (streamnet)
 # Requires running first 077_main_lowres_v3_shiftregion.py (lisflood files)
 # Output of these script is then copied from PC to this server
 #
 # Peter Uhe
 # 2020/01/28
-# 
+#
 
 # Load modules
-import os,sys,glob,pickle,shutil
+import os,sys,glob,pickle,shutil,socket
 import numpy as np
 from netCDF4 import Dataset,num2date
 from osgeo import ogr
 import csv
-import datetime
+import datetime, calendar
 from write_bdy_bci import write_bdy, write_bci_v2
 import subprocess
 
@@ -22,8 +22,8 @@ import warnings
 warnings.filterwarnings("error")
 
 ########################################################################################
-# Function to calculate index of closest grid box, 
-# Inputs are point latitude and longitude coordinates and grid latitude,longitude coordinates 
+# Function to calculate index of closest grid box,
+# Inputs are point latitude and longitude coordinates and grid latitude,longitude coordinates
 #
 def find_closest_1d_v2(p_lat,p_lon,lat_coord,lon_coord):
 	ny=lat_coord.shape[0]
@@ -46,8 +46,8 @@ def find_closest_1d_v2(p_lat,p_lon,lat_coord,lon_coord):
 	return miny,minx
 
 ########################################################################################
-# Function to calculate index of point, 
-# Inputs are point latitude and longitude coordinates and list of latitude,longitude pairs 
+# Function to calculate index of point,
+# Inputs are point latitude and longitude coordinates and list of latitude,longitude pairs
 #
 def find_closest_list(p_lat,p_lon,lat_coord,lon_coord):
 	ny=lat_coord.shape[0]
@@ -64,7 +64,7 @@ def find_closest_list(p_lat,p_lon,lat_coord,lon_coord):
 	return miny,min_dist
 
 ########################################################################################
-# Function to return true if point (xx,yy) is within bounds xbounds,ybounds 
+# Function to return true if point (xx,yy) is within bounds xbounds,ybounds
 def in_bounds(xx,yy,xbound,ybound):
 	return xbound[0]<xx and xx<xbound[1] and ybound[0]<yy and yy<ybound[1]
 
@@ -80,7 +80,7 @@ def format_date(date):
 	return date.strftime('%Y-%m-%d')
 
 
-###############################################################################################		
+###############################################################################################
 # Start of main script
 ###############################################################################################
 # Set up Shapefile reading driver
@@ -106,6 +106,9 @@ resname = '9sd8'
 #resname = '9sd4'
 clipname = regname+'_'+resname
 
+# Pattern of name of mizuroute simulations to process (can contain wildcards '*','?' etc)
+#mizuRuns = 'GBM-p1deg_90?_MSWEP2-2-ERA5-calibrated2_MSWEP2-2-ERA5/q_*2017-1-1.nc'
+mizuRuns = 'GBM-tiled2-2_90?_calibrated1/q_*.nc'
 # Domain to use
 #xbound = [89,90]
 #ybound = [24.5,26]
@@ -114,28 +117,63 @@ startmon = 4 # april (1)
 endmon = 10 # october (31)
 ntimes = None
 
-gcms = ['NorESM1-HAPPI'] #'ECHAM6-3-LR',
-
 sublist = []
 
-dryrun = True
+dryrun = False
+override = True
 
-# Specify directories
+# Setup for file paths
+host = socket.gethostname()
+if host[:7] == 'newblue':
+	# Input dir for discharge
+	mizuroute_outdir = '/newhome/pu17449/data/mizuRoute/output'
+	# File, storing network attributes
+	f_network        = '/newhome/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
+	# Lisflood directories
+	lfdir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_'+clipname
+	logdir = '/newhome/pu17449/data/lisflood/logs'
+
+	# Submission setup
+	qsub_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_v2.sh'
+	control_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v3.py'
+	# EXE for d4 version of the code (from the trunk)
+	#exe_file = '/newhome/pu17449/src/lisfloodfp_trunk/lisflood_double_rect_trunk-r647'
+	# EXE for the d8 version of the code:
+	exe_file = '/newhome/pu17449/src/pfu_d8subgrid/lisflood_double_rect_r688'
+	ncpus = 16 # (node size is 16)
+	jobsize = 4 # number of processors per simulation
+	simsperjob = 24
+
+elif host[:3]=='bp1':
+	mizuroute_outdir = '/work/pu17449/mizuRoute/output/'
+	# File, storing network attributes
+	f_network        = '/home/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
+	# Lisflood simulation directories
+	lfdir = '/work/pu17449/lisflood/lisfloodfp_'+clipname
+	logdir = '/work/pu17449/lisflood/logs'
+
+	# Qsub file for HPC queue
+	qsub_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_bp.sh'
+	control_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v3.py'
+	exe_file = '/home/pu17449/bin/lisflood_double_rect_r688'
+	#exe_file = '/home/pu17449/bin/lisflood_double_rect_trunk-r647'
+	ncpus = 4 # (node size is 24) # number of processors per job
+	jobsize = 4 # number of processors per simulation
+	simsperjob = 1
+
+# Specify directories (relative paths)
 ###############################################################################################
-# Input dir for discharge
-mizuroute_outdir = '/newhome/pu17449/data/mizuRoute/output'
-# Lisflood directories
-lfdir = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_'+clipname
-resultdir = os.path.join(lfdir,'results')
-streamdir = os.path.join(lfdir,'streamnet')
 lf_dischargedir = os.path.join(lfdir,'dischargeobs')
 lf_pardir = os.path.join(lfdir,'parfilesobs')
+resultdir = os.path.join(lfdir,'results')
+streamdir = os.path.join(lfdir,'streamnet')
+
 if not os.path.exists(lf_dischargedir):
 	os.mkdir(lf_dischargedir)
 if not os.path.exists(lf_pardir):
 	os.mkdir(lf_pardir)
 
-# Specify file paths
+# Specify file paths (relative paths)
 ###############################################################################################
 # Shapefiles containing up/downstream points in each river segment/link
 # HACK to use d8 discharge locations
@@ -152,23 +190,10 @@ f_upstream_all  = os.path.join(streamdir,'strn_network_'+resname2+'_acc_upstream
 # parameter file template for lisflood
 # TODO, at the moment this is created manually, but could be automated a bit more
 #f_par_template = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/077_template.par'
-f_par_template = os.path.join(lfdir,'077_template.par')
+f_par_template = os.path.join(lfdir,'077_template_vout.par')
 # output bci file (only one needed to describe the discharge points of the network)
 f_bci = os.path.join(lf_dischargedir,clipname+'.bci')
 print('bcifile:',f_bci)
-
-# Setup for qsub submission
-logdir = '/newhome/pu17449/data/lisflood/logs'
-qsub_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_v2.sh'
-control_script = '/newhome/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v3.py'
-# EXE for d4 version of the code (from the trunk)
-#exe_file = '/newhome/pu17449/src/lisfloodfp_trunk/lisflood_double_rect_trunk-r647'
-# EXE for the d8 version of the code:
-exe_file = '/newhome/pu17449/src/pfu_d8subgrid/lisflood_double_rect_r688'
-ncpus = 16 # (node size is 16) 
-jobsize = 4 # number of processors per simulation
-simsperjob = 24
-logdir = logdir = '/newhome/pu17449/data/lisflood/logs'
 
 # Export common environment variables
 os.environ['LISFLOOD_DIR'] = lfdir
@@ -179,8 +204,7 @@ os.environ['NCPUS']=str(ncpus)
 os.environ['OMP_NUM_THREADS'] = str(jobsize)
 os.environ['RESULTDIR'] = resultdir
 
-# File, storing network attributes 
-f_network        = '/newhome/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
+
 ###############################################################################################
 # Main script: Get points for discharge in river network
 
@@ -259,11 +283,11 @@ for feature in points:
 		points_upall[link] = [xx,yy]
 
 ###############################################################################################
-# Work out downstream boundary conditions, 
+# Work out downstream boundary conditions,
 # Boundary should be closed except at downstream boundaries
-# create buffer around each downstream point for 
+# create buffer around each downstream point for
 # use slope of reach to prescribe water surface slope at boundary
-# TODO:	possible issue if buffers from different reaches overlap. 
+# TODO:	possible issue if buffers from different reaches overlap.
 # 		check implications of this
 ds_bcs = []
 for link in links:
@@ -298,7 +322,7 @@ with Dataset(f_network,'r') as f:
 	# Work out the mizuroute segment index corresponding to lisflood river network 'linkno'
 	# Match upstream coordinates for each river segment
 	#
-	seg_index_map = {} 
+	seg_index_map = {}
 	for link,point in points_upall.items():
 		xx,yy = point
 		index,mindist = find_closest_list(yy,xx,lats,lons)
@@ -313,7 +337,7 @@ with Dataset(f_network,'r') as f:
 #
 #fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrateRand0001_'+model+'_*_EWEMBI/q_*.nc')
 #fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated?','q_*.nc')
-fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated1','q_*.nc')
+fpattern = os.path.join(mizuroute_outdir,mizuRuns)#,'q_*.nc')
 for f_discharge in glob.glob(fpattern):
 	#f_discharge = '/home/pu17449/data2/mizuRoute/merithydro/q_GBM_MERIT-Hydro_1988-1-1.nc'
 	fname = os.path.basename(f_discharge)
@@ -327,7 +351,7 @@ for f_discharge in glob.glob(fpattern):
 
 	outdir = os.path.join(resultdir,runname)
 	maxtif = os.path.join(outdir,runname+'-max.tif') # Only generated after the run is finished
-	if os.path.exists(maxtif):
+	if os.path.exists(maxtif) and not override:
 		print('Result already exists, skipping')
 		continue
 
@@ -341,15 +365,17 @@ for f_discharge in glob.glob(fpattern):
 			routed_vals = f_in.variables['IRFroutedRunoff']
 			times = f_in.variables['time']
 			dates = num2date(times[:],times.units)
+			print('debug',)
 
 			# Subset data to be within startdate-endate
 			startdate = datetime.datetime(year,startmon,1)
-			enddate   = datetime.datetime(year,endmon+1,1)
+			d0,d1 = calendar.monthrange(year,endmon)
+			enddate   = datetime.datetime(year,endmon,d1)
 			startindex = np.where(dates==startdate)[0][0]
 			endindex = np.where(dates==enddate)[0][0]
-			routed_vals = routed_vals[startindex:endindex,:]
-			runoff_vals = runoff_vals[startindex:endindex,:]
-			dates = dates[startindex:endindex]
+			routed_vals = routed_vals[startindex:endindex+1,:]
+			runoff_vals = runoff_vals[startindex:endindex+1,:]
+			dates = dates[startindex:endindex+1]
 			datestrings = map(format_date,dates)
 			ntimes = len(dates)
 
@@ -399,8 +425,8 @@ for f_discharge in glob.glob(fpattern):
 						upacc1 = acc_upclip[link]
 						upacc2 = acc_upall[link]
 						downacc = acc_ntd[link]
-						top_flow = routed - runoff * (upacc1 - downacc) / (upacc2 - downacc)
-						bottom_flow = runoff * (upacc1 - downacc) / (upacc2 - downacc)
+						top_flow = routed - runoff * (downacc - upacc1) / (downacc - upacc2)
+						bottom_flow = runoff * (downacc - upacc1) / (downacc - upacc2)
 
 						# Write flow at top of reach
 						x,y = points_upclip[link]
@@ -419,7 +445,7 @@ for f_discharge in glob.glob(fpattern):
 						x,y = points_ntd[link]
 						row = [segids_mizu[seg_index],x,y,link]+list(runoff)
 						fwriter.writerow(row)
-						
+
 
 		print('writing to bdy file')
 		write_bdy(f_bdy,f_csv,ntimes)
@@ -435,10 +461,10 @@ for f_discharge in glob.glob(fpattern):
 	bdy_relative = f_bdy[len(lfdir)+1:]
 
 	if ntimes is None:
-		tmp = open(f_csv,'r').readline()
+		with open(f_csv,'r') as f: tmp = f.readline()
 		ntimes = len(tmp.split(','))-4
 	sim_time = str(ntimes*86400)
-	
+
 
 	if not os.path.exists(f_par):
 		# copy template and modify
@@ -466,7 +492,7 @@ for f_discharge in glob.glob(fpattern):
 			subprocess.call(qsub_cmd)
 		else:
 			print('Dry run, not submitting')
-		# reset sublist 
+		# reset sublist
 		sublist = []
 
 # submit any that are left
@@ -483,6 +509,3 @@ if len(sublist)>0:
 	#subprocess.call([qsub_script])
 else:
 	print('No more simulations to submit!')
-
-
-

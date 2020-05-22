@@ -1,10 +1,11 @@
 # Script to produce maps of FUSE parameter sets, based on parameter transfer / regionalisation
 # Peter Uhe
 # August 2019
-# 
-# script '3random' takes the fields from the 3 choices of parameter sets and randomly picks one of them for each grid point. 
 #
-# Script to use anaconda and python3: 
+# script '3random' takes the fields from the 3 choices of parameter sets and randomly picks one of them for each grid point.
+# This needs to be run AFTER generate_param_maps_3choices_mswepp1deg.py
+#
+# Script to use anaconda and python3:
 # On bluecrystal:
 # module load languages/python-anaconda3-2019.03
 # source activate petepy
@@ -22,23 +23,15 @@ np.random.seed(33)
 #########################################################################################
 # Input files
 
-dec = 904
-
+dec = 900
+setup_name = 'GBM-p1deg'
+obsversion = 'MSWEP2-2-ERA5'
 # for bc3:
 #griddir = '/newhome/pu17449/data/fuse/fuse_GBM_v2-2/'
 # for bc4:
-griddir = '/mnt/storage/scratch/pu17449/fuse/fuse_GBM_v2-2'
-
-# for bc3:
-#basedir = '/newhome/pu17449/data/fuse/grdc_catchments/'
-#FOR bc4
-basedir = '/mnt/storage/scratch/pu17449/fuse/grdc_catchments'
-
-
-f_donor = '/mnt/storage/home/pu17449/src/fuse_processing/GBM-5deg_distances_GBM-hisnowIQR_reducedset.pkl'
-
-f_grid = os.path.join(griddir,'input/GBM-tiled2-2_elev_bands.nc')
-
+#griddir = '/mnt/storage/scratch/pu17449/fuse/fuse_GBM_v2-2'
+# for bp1:
+griddir = '/work/pu17449/fuse/'+setup_name
 
 #########################################################################################
 
@@ -48,8 +41,8 @@ param_units = {}
 lats = None
 lons = None
 for choice in range(3):
-	f_paramset = os.path.join(griddir,'output/GBM-tiled2-2_'+str(dec)+'_MSWEPp5degcalibrated'+str(choice+1)+'.nc')
-	
+	f_paramset = os.path.join(griddir,'output/'+setup_name+'_'+str(dec)+'_'+obsversion+'-calibrated'+str(choice+1)+'.nc')
+
 	with Dataset(f_paramset,'r') as f:
 		if lats is None:
 			lats = f.variables['latitude'][:]
@@ -72,10 +65,10 @@ for choice in range(3):
 
 for r in range(20):
 	print('donor catchment random choice:',r)
-	f_out = os.path.join(griddir,'output/GBM-tiled2-2_'+str(dec)+'_MSWEPp5degcalibrateRand'+str(r+1).zfill(4)+'.nc')
+	f_out = os.path.join(griddir,'output/'+setup_name+'_'+str(dec)+'_'+obsversion+'-calibrateRand'+str(r+1).zfill(4)+'.nc')
 	choicearr = np.random.choice([0,1,2],size=shp)
 	print('writing',f_out,'...')
-			
+
 
 	# Write grid to output
 	with Dataset(f_out,'w') as f_out:
@@ -102,8 +95,7 @@ for r in range(20):
 			var = f_out.createVariable(param,np.float,('latitude','longitude'),fill_value=-9999)
 			var.long_name = param_longname[param]
 			var.units = param_units[param]
-		
+
 			for j in range(shp[0]):
 				for i in range(shp[1]):
 					var[j,i] = field[choicearr[j,i],j,i]
-	

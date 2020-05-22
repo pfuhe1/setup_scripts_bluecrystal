@@ -1,15 +1,15 @@
 # lisflood_setup_inputs_obs_v2.py
 # Takes input from mizuRoute discharge, river network information and produces lisflood boundary conditions
-# Requires running first lisflood_discharge_inputs_qgis.py to produce shapefiles (streamnet) 
+# Requires running first lisflood_discharge_inputs_qgis.py to produce shapefiles (streamnet)
 # Requires running first 077_main_lowres_v3_shiftregion.py (lisflood files)
 # Output of these script is then copied from PC to this server
 #
 # Peter Uhe
 # 2020/01/28
-# 
+#
 
 # Load modules
-import os,sys,glob,pickle,shutil
+import os,sys,glob,pickle,shutil,socket
 import numpy as np
 from netCDF4 import Dataset,num2date
 from osgeo import ogr
@@ -22,8 +22,8 @@ import warnings
 warnings.filterwarnings("error")
 
 ########################################################################################
-# Function to calculate index of closest grid box, 
-# Inputs are point latitude and longitude coordinates and grid latitude,longitude coordinates 
+# Function to calculate index of closest grid box,
+# Inputs are point latitude and longitude coordinates and grid latitude,longitude coordinates
 #
 def find_closest_1d_v2(p_lat,p_lon,lat_coord,lon_coord):
 	ny=lat_coord.shape[0]
@@ -46,8 +46,8 @@ def find_closest_1d_v2(p_lat,p_lon,lat_coord,lon_coord):
 	return miny,minx
 
 ########################################################################################
-# Function to calculate index of point, 
-# Inputs are point latitude and longitude coordinates and list of latitude,longitude pairs 
+# Function to calculate index of point,
+# Inputs are point latitude and longitude coordinates and list of latitude,longitude pairs
 #
 def find_closest_list(p_lat,p_lon,lat_coord,lon_coord):
 	ny=lat_coord.shape[0]
@@ -64,7 +64,7 @@ def find_closest_list(p_lat,p_lon,lat_coord,lon_coord):
 	return miny,min_dist
 
 ########################################################################################
-# Function to return true if point (xx,yy) is within bounds xbounds,ybounds 
+# Function to return true if point (xx,yy) is within bounds xbounds,ybounds
 def in_bounds(xx,yy,xbound,ybound):
 	return xbound[0]<xx and xx<xbound[1] and ybound[0]<yy and yy<ybound[1]
 
@@ -80,7 +80,7 @@ def format_date(date):
 	return date.strftime('%Y-%m-%d')
 
 
-###############################################################################################		
+###############################################################################################
 # Start of main script
 ###############################################################################################
 # Set up Shapefile reading driver
@@ -105,10 +105,26 @@ extentstr = str(extent)[1:-1]
 
 # Specify directories
 ###############################################################################################
-# Input dir for discharge
-f_discharge = '/newhome/pu17449/data/mizuRoute/output/q_bankfull_50ile.nc'
-# Lisflood directories
-streamdir = '/newhome/pu17449/data/lisflood/ancil_data/bankfullq_'+resname
+
+runname = 'GBM-p1deg_MSWEP2-2-ERA5'
+resname = '9sd8'
+
+host = socket.gethostname()
+if host[:7] == 'newblue':
+	# File, storing network attributes
+	f_network        = '/newhome/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
+	# Input dir for discharge
+	f_discharge = '/newhome/pu17449/data/mizuRoute/output/q_bankfull_50ile.nc'
+	# Lisflood directories
+	streamdir = '/newhome/pu17449/data/lisflood/ancil_data/bankfullq_'+resname
+
+elif host[:3]=='bp1':
+	# File, storing network attributes
+	f_network        = '/home/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
+	f_discharge      = '/work/pu17449/mizuRoute/output/q_bankfull_'+runname+'_50ile.nc'
+	# Folder with full GBM stream network (output bankfullq files here)
+	streamdir        = '/work/pu17449/lisflood/bankfullq_'+resname
+
 
 # Specify file paths
 ###############################################################################################
@@ -116,11 +132,11 @@ streamdir = '/newhome/pu17449/data/lisflood/ancil_data/bankfullq_'+resname
 vertices_file = os.path.join(streamdir,'strn_network_'+resname+'_vertices.shp')
 f_ntdstream    = os.path.join(streamdir,'strn_network_'+resname+'_acc_next-to-downstream.shp')
 f_upstream  = os.path.join(streamdir,'strn_network_'+resname+'_acc_upstream.shp')
-bankfull_shp = os.path.join(streamdir,'strn_network_'+resname+'_bankfullq.shp')
-bankfull_tif = os.path.join(streamdir,'strn_network_'+resname+'_bankfullq.tif')
+#bankfull_shp = os.path.join(streamdir,'strn_network_'+resname+'_bankfullq.shp')
+#bankfull_tif = os.path.join(streamdir,'strn_network_'+resname+'_bankfullq.tif')
+bankfull_shp = os.path.join(streamdir,'strn_network_'+resname+'_'+runname+'_bankfullq.shp')
+bankfull_tif = os.path.join(streamdir,'strn_network_'+resname+'_'+runname+'_bankfullq.tif')
 
-# File, storing network attributes 
-f_network        = '/newhome/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
 ###############################################################################################
 # Main script: Get points for discharge in river network
 
@@ -236,10 +252,10 @@ for link in links:
 	uslink1 = uslinks1[link]
 	uslink2 = uslinks2[link]
 	length = streamlen[link]
-	# Set downstream q for this link 
+	# Set downstream q for this link
 	#if length == 0.0: # this link occurs where three tributaries join
 	#	q_downstream[link] = 0.0
-	if link in nomap: 
+	if link in nomap:
 		# We dont have a mizuroute value for this link (this includes zero length links)
 		# Use value from upstream reaches added together
 		q_downstream[link] = 0.0
@@ -247,7 +263,7 @@ for link in links:
 			q_downstream[link]+=routed_vals[seg_index_map[uslink1]]
 		if uslink2 in seg_index_map:
 			q_downstream[link]+=routed_vals[seg_index_map[uslink2]]
-	else: # Normal link 
+	else: # Normal link
 		index = seg_index_map[link]
 		q_downstream[link] = routed_vals[index]
 
@@ -263,7 +279,7 @@ for link in links:
 		downacc = acc_ntd[link]
 		q_upstream[link] = q_downstream[link]*(upacc/downacc)
 	else:
-		# Options: 
+		# Options:
 		# 1. set q_upstream equal to q_downstream (to have constant q across whole reach)
 		# Unless this is greater than the sum of the upstream links, then set to this sum
 		q_upstream[link] = min(q_downstream[link], q_downstream[uslink1]+q_downstream[uslink2])
@@ -304,7 +320,7 @@ for feature in points:
 
 	# Set bankfull q
 	try:
-		if vertex_index==0 : 
+		if vertex_index==0 :
 			# Dont assign q for downstream vertices (except for river outlet)
 			if dslink == -1:
 				thisq = q_down
@@ -313,11 +329,11 @@ for feature in points:
 				continue
 
 		else:
-			if reachlen == 0: 
+			if reachlen == 0:
 				if reachdist == 0.0: # Only a single point skip this
 					points.DeleteFeature(feature.GetFID())
 					continue
-				else: # Set q to q_down 
+				else: # Set q to q_down
 					thisq = q_down
 			else:
 				# Interpolate between upstream and downstream q
@@ -331,7 +347,7 @@ for feature in points:
 	except Exception as e:
 		print('Error setting q:',e)
 		print('Link,Q',link,vertex_index,reachlen,q_up,q_down)
-	
+
 # Finally clean up this shapefile by removing all other fields
 #p1 = points.GetNextFeature()
 #for field in feature.keys():

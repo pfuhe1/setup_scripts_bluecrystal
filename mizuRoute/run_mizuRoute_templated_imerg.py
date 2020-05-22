@@ -11,19 +11,21 @@ host = socket.gethostname()
 ##################################################################################
 # Inputs from FUSE simulations:
 
-runlength = 38 # years to run (for checking complete output)
-
+#runlength = 38 # years to run (for checking complete output)
+ssim = '2000-06-01'
+esim = '2017-10-31'
+runlength = int(esim[:4])-int(ssim[:4])+1
 
 # List of decision IDS and calibration choices to loop over
 # These need to correspond to FUSE simulations
 # FUSE simulations have the naming format: <setup-name>_<decision-id>_<calib-choice>
 setup_name = 'GBM-p1deg'
 obsversion = 'MSWEP2-2-ERA5' # observations used in calibration
-forcing    = obsversion      # forcing data used in FUSE run (can be obs or modeled)
-fuse_decision_ids = [902]
-#calib_choices = [''] 
-#calib_choices = ['rundef','calibrated1','calibrated2','calibrated3']
-calib_choices  = ['longcalib1','longcalib2','longcalib3']
+forcing    = 'IMERG-ERA5'      # forcing data used in FUSE run (can be obs or modeled)
+fuse_decision_ids = [900,902,904]
+#calib_choices = ['']
+calib_choices = ['rundef','calibrated1','calibrated2','calibrated3']
+#calib_choices  = ['longcalib1','longcalib2','longcalib3']
 #, 'calibrateRand0001','calibrateRand0002','calibrateRand0003','calibrateRand0004','calibrateRand0005', 'calibrateRand0006','calibrateRand0007','calibrateRand0008','calibrateRand0009','calibrateRand0010', 'calibrateRand0011','calibrateRand0012','calibrateRand0013','calibrateRand0014','calibrateRand0015', 'calibrateRand0016','calibrateRand0017','calibrateRand0018','calibrateRand0019']
 
 # initialise dictionary of input runs (name and input file)
@@ -35,7 +37,7 @@ input_runs = {}
 if host[:3]=='bp1': #blue pebble
 	mizudir = '/work/pu17449/mizuRoute'
 	inbase  = '/work/pu17449/fuse/GBM-p1deg/output/'
-	control_template = '/home/pu17449/src/mizuRoute/route/settings/GBM-MERIT_MSWEPp1deg.control_template'
+	control_template = '/home/pu17449/src/mizuRoute/route/settings/GBM-MERIT_p1deg_v2.control_template'
 	qsub_script = '/home/pu17449/src/setup_scripts/mizuRoute/call_pythonscript_bp1.sh' # use this one so we can load modules
 	ncpus       = 1
 	nperjob  = 1
@@ -47,7 +49,7 @@ else: #blue crystal phase 3
 	inbase = '/newhome/pu17449/data/fuse/fuse_GBM_v2-2/output'
 	mizudir = '/newhome/pu17449/data/mizuRoute'
 	# Control files: use template then modify OUTDIR,INDIR,FIN,OUTNAME
-	control_template = '/newhome/pu17449/src/mizuRoute/route/settings/GBM-MERIT_MSWEPp1deg.control_template'
+	control_template = '/newhome/pu17449/src/mizuRoute/route/settings/GBM-MERIT_p1deg_v2.control_template'
 	qsub_script = '/newhome/pu17449/src/setup_scripts/mizuRoute/call_pythonscript.sh' # use this one so we can load python3 module before calling python
 
 outbase    = os.path.join(mizudir,'output')
@@ -80,7 +82,7 @@ for dec in fuse_decision_ids:
 		#if calib == '':# runs def (first version)
 			#sim_name = setup_name+'_'+str(dec)+'_'+forcing
 			#sim_name = sim_name[:-1]# remove last '_' from name
-		if calib == 'rundef': # FUSE default parameters 
+		if calib == 'rundef': # FUSE default parameters
 			sim_name = setup_name+'_'+str(dec)+'_rundef_'+forcing
 			infile = os.path.join(inbase,sim_name+'_runs_def.nc')
 			infile2 = os.path.join(inbase,sim_name+'_runs_def_qinst.nc')
@@ -99,6 +101,15 @@ for dec in fuse_decision_ids:
 			print('Error, infile doesnt exist',infile)
 			ret = -1
 		if ret == 0:
+			# Additional modification for time dimension units attribute
+			# (mizuRoute cant handle 'days since 1970-01-01 00:00:00Z')
+			# Solution: remove final 'Z' from string
+			if forcing == 'IMERG-ERA5':
+				nco_cmd = ['ncatted','-a',"units,time,m,c,days since 1970-01-01 00:00:00",infile2]
+				print(' '.join(nco_cmd))
+				ret = subprocess.call(nco_cmd)
+				if not ret == 0:
+					raise Exception('Error running ncatted command')
 			input_runs[sim_name] = infile2
 		else:
 			print('Error running cdo command on input file!')
@@ -137,6 +148,8 @@ for runname,inpath in input_runs.items():
 		sed_expr = 's#<OUTDIR>#'+outdir+'#g; '
 		sed_expr += 's#<INDIR>#'+indir+'#g; '
 		sed_expr += 's#<FIN>#'+fin+'#g; '
+		sed_expr += 's#<START>#'+ssim+'#g; '
+		sed_expr += 's#<END>#'+esim+'#g; '
 		sed_expr += 's#<OUTNAME>#'+outname+'#g'
 		print(sed_expr)
 		cmd = ['sed','-i','-e',sed_expr ,control_file]

@@ -10,17 +10,20 @@ import os,glob,subprocess,sys,shutil,multiprocessing
 import datetime
 
 def call_subproc(cmd,logfile):
-	subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
+	with open(logfile,'w') as flog:
+		# Write command into the log file before running
+		flog.write('Running command: '+' '.join(cmd)+'\n\n')
+		subprocess.call(cmd,stdout=flog,stderr=subprocess.STDOUT)
 
 # Print start time 
 print('Starting',datetime.datetime.now())
-
 
 #fm_files = sys.argv[1:]
 fm_files = os.environ['FM_FLIST'].split(':')
 logdir = os.environ['LOGDIR']
 ncpus = int(os.environ['NCPUS'])
 fuseexe = os.environ['FUSE_EXE']
+print('Environment: NCPUS',ncpus,'LOGDIR',logdir,'fuseexe',fuseexe)
 print('running simulations',len(fm_files))
 print(os.environ['FM_FLIST'])
 pool = multiprocessing.Pool(processes=ncpus)

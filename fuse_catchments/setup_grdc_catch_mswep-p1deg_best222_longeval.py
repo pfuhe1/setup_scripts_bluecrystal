@@ -77,8 +77,8 @@ with open(f_catchlist,'r') as f:
 		print(grdcid)
 		sim_dir = os.path.join(data_dir,'fuse_grdc_'+grdcid)
 		print(sim_dir)
-		fm_template = os.path.join(templatedir,'fm_catch_grdc_template_25000loops_mswep-p1deg.txt')
-		fm_file = os.path.join(sim_dir,'fm_grdc_'+grdcid + '_dec_'+str(fuse_decision_id)+'_mswep-p1deg.txt')
+		fm_template = os.path.join(templatedir,'fm_catch_grdc_template_25000loops_mswep-p1deg_longeval.txt')
+		fm_file = os.path.join(sim_dir,'fm_grdc_'+grdcid + '_dec_'+str(fuse_decision_id)+'_mswep-p1deg_longeval.txt')
 		# Paths for catchment
 		idir = os.path.join(sim_dir,'input')
 		if not os.path.exists(idir): os.mkdir(idir)
@@ -86,7 +86,7 @@ with open(f_catchlist,'r') as f:
 		if not os.path.exists(odir):
 			os.mkdir(odir)
 		else: # Check if the calibration has already been run scucessfully
-			fsce_out = os.path.join(odir,sim_name0+'_'+str(fuse_decision_id)+'_mswep-p1deg_sce_output.txt')
+			fsce_out = os.path.join(odir,sim_name0+'_'+str(fuse_decision_id)+'_mswep-p1deg-longeval_sce_output.txt')
 			print(fsce_out)
 			if os.path.exists(fsce_out) and success_sce_output(fsce_out):
 				if check_converged(fsce_out):
@@ -117,7 +117,8 @@ with open(f_catchlist,'r') as f:
 		#print('Full period',sdatetime,edatetime)
 		# For calibration/evaluation period, just split in two
 		days = (edatetime-sdatetime).days
-		s_eval = sdatetime+datetime.timedelta(days/2)
+		#s_eval = sdatetime+datetime.timedelta(days/2)
+		s_eval = sdatetime+datetime.timedelta(365) # Use whole time period for eval (except first year for spinup)
 		s_evalstring = s_eval.strftime("%Y-%m-%d")
 		e_eval = edatetime
 		e_evalstring = e_eval.strftime("%Y-%m-%d")
