@@ -107,7 +107,8 @@ extentstr = str(extent)[1:-1]
 ###############################################################################################
 
 runname = 'GBM-p1deg_MSWEP2-2-ERA5'
-resname = '9sd8'
+#resname = '9sd8'
+#res = 0.0025
 
 host = socket.gethostname()
 if host[:7] == 'newblue':

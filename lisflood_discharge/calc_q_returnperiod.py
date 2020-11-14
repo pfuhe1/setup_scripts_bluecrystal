@@ -38,7 +38,7 @@ elif host[:3]=='bp1':
 	mizuroute_outdir = '/work/pu17449/mizuRoute/output/'
 	runname0 = 'GBM-p1deg_MSWEP2-2-ERA5'
 	fpattern = os.path.join(mizuroute_outdir,'GBM-p1deg_90?_MSWEP2-2-ERA5-calibrated?_MSWEP2-2-ERA5','q_*.nc')
-	# Template file to use for output
+	# Template file to use for output (copy of any mizuRoute output file)
 	template = os.path.join(mizuroute_outdir,'template.nc')
 percentile = 50 # percentile assumed for bankfull flow
 
@@ -54,8 +54,7 @@ for i,f_discharge in enumerate(files):
 	outdir  = os.path.join(yrmax_dir,runname)
 	maxfile = os.path.join(outdir,fname[:-3]+'_yrmax.nc')
 	if os.path.exists(maxfile):
-		print('Result already exists, skipping')
-		continue
+		print('Yrmax Result already exists, skipping calculation')
 	else:
 		if not os.path.exists(outdir):
 			os.makedirs(outdir)
@@ -69,6 +68,7 @@ for i,f_discharge in enumerate(files):
 
 # Now calculate bankfull from 50th percentile (e.g. 2 year return period flow)
 bankfull = np.percentile(fulldata,percentile,axis=0)
+print('Debug,bankfull:',bankfull.min(),bankfull.mean(),bankfull.max())
 
 # Now write out bankfull to netcdf file, based on template
 bankfull_file = os.path.join(mizuroute_outdir,'q_bankfull_'+runname0+'_'+str(percentile)+'ile.nc')

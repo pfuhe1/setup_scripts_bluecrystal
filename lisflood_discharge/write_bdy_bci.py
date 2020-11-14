@@ -20,8 +20,12 @@ def write_bdy(bdylfp, runcsv, t):
 
     # writing inflows
     for i in rund.columns:
-        r = rund[i].to_frame()
-        #r = rund[i].copy()
+        try:
+            r = rund[i].to_frame()
+        except:
+            print('Error, this is probably because multiple rows have the same linkID',rund[i])
+            raise
+        #    r = rund[i].copy()
         #print(i,type(r))
         #r = r.to_frame()
         #print(type(r))

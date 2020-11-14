@@ -11,7 +11,7 @@ import socket
 
 # User choice
 # TODO: first call script to produce different calibration files. (src/fuse_processing/generate_param_maps.py
-fuse_decision_ids = [900,902,904]
+fuse_decision_ids = [904]
 
 setup_name = 'GBM-p1deg'
 obsversion = 'MSWEP2-2-ERA5'
@@ -19,12 +19,12 @@ ssim = '1979-04-01'
 esim = '2017-10-31'
 
 
-calib_choices = ['rundef',obsversion+'-calibrated1',obsversion+'-calibrated2',obsversion+'-calibrated3']
+#calib_choices = ['rundef',obsversion+'-calibrated1',obsversion+'-calibrated2',obsversion+'-calibrated3']
 #calib_choices = [obsversion+'-longcalib1',obsversion+'-longcalib2',obsversion+'-longcalib3']
 #calib_choices = ['rundef']
-#calib_choices = [obsversion+'-calibrateRand0001',obsversion+'-calibrateRand0002',obsversion+'-calibrateRand0003',obsversion+'-calibrateRand0004',obsversion+'-calibrateRand0005',obsversion+'-calibrateRand0006',obsversion+'-calibrateRand0007',obsversion+'-calibrateRand0008',obsversion+'-calibrateRand0009',obsversion+'-calibrateRand0010',obsversion+'-calibrateRand0011',obsversion+'-calibrateRand0012',obsversion+'-calibrateRand0013',obsversion+'-calibrateRand0014',obsversion+'-calibrateRand0015',obsversion+'-calibrateRand0016',obsversion+'-calibrateRand0017',obsversion+'-calibrateRand0018',obsversion+'-calibrateRand0019',obsversion+'-calibrateRand0020']]
+calib_choices = [obsversion+'-calibrateRand0001',obsversion+'-calibrateRand0002',obsversion+'-calibrateRand0003',obsversion+'-calibrateRand0004',obsversion+'-calibrateRand0005',obsversion+'-calibrateRand0006',obsversion+'-calibrateRand0007',obsversion+'-calibrateRand0008',obsversion+'-calibrateRand0009',obsversion+'-calibrateRand0010',obsversion+'-calibrateRand0011',obsversion+'-calibrateRand0012',obsversion+'-calibrateRand0013',obsversion+'-calibrateRand0014',obsversion+'-calibrateRand0015',obsversion+'-calibrateRand0016',obsversion+'-calibrateRand0017',obsversion+'-calibrateRand0018',obsversion+'-calibrateRand0019'] #,obsversion+'-calibrateRand0020']]
 
-override = True
+override = False
 
 ###################################################################################
 # Define computer specific paths/variables
@@ -53,7 +53,8 @@ elif host[:3] == 'bp1':# blue pebble
 	basedir = '/work/pu17449/fuse/'+setup_name
 	ncpus = 1
 	nperjob = 1
-	fuse_exe =  '/home/pu17449/src/fuse_dev/bin/fuse_update_noconsistency.exe'
+#	fuse_exe =  '/home/pu17449/src/fuse_dev/bin/fuse_update_noconsistency.exe'
+	fuse_exe = '/home/pu17449/src/fuse_dev/bin/fuse_update_consistency.exe'
 	#fuse_exe = '/home/pu17449/src/fuse_dev/bin/fuse_o3v1.exe'
 	qsub_script = '/home/pu17449/src/setup_scripts/fuse_GBM/call_pythonscript_bp1.sh'
 	# NOTE: I compiled an optimized version of fuse.exe, but that seems to cause problems with the sce parameter estimation
@@ -85,11 +86,11 @@ for dec in fuse_decision_ids:
 	for calib in calib_choices:
 		sim_name = setup_name+'_'+str(dec)+'_'+calib+'_'+obsversion
 		print(sim_name)
-
+		#output looks like: GBM-p1deg_904_MSWEP2-2-ERA5-calibrateRand0016_MSWEP2-2-ERA5_runs_pre_dist.nc
 		if calib == 'rundef':
-			out_file = os.path.join(outputdir,sim_name+'runs_def.nc')
+			out_file = os.path.join(outputdir,sim_name+'_runs_def.nc')
 		else:
-			out_file = os.path.join(outputdir,sim_name+'runs_pre_dist.nc')
+			out_file = os.path.join(outputdir,sim_name+'_runs_pre_dist.nc')
 
 		# Check if this run has already been computed
 		if not os.path.exists(out_file) or override:

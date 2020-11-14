@@ -1,5 +1,5 @@
 #!/bin/sh
-#PBS -l walltime=11:55:00
+#PBS -l walltime=72:00:00
 #PBS -j oe
 
 # NOTE: some resources are passed through by the command line
@@ -10,6 +10,7 @@ echo "Starting script"
 # Load modules for blue pebble
 module load lib/gdal/2.4.2 
 module load lang/python/anaconda/3.7-2019.03
+source activate pyenv
 which python
 # ENV vars used by this script (exported by submit script):
 # LISFLOOD_DIR and CONTROL_SCRIPT

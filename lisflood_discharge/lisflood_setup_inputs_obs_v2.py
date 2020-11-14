@@ -96,19 +96,33 @@ driver = ogr.GetDriverByName("ESRI Shapefile")
 ds_buffer = 0.1 # buffer around each reach to set the downstream boundary
 
 
-extent = [89.081,90.3,24,26.5]
-regname = 'rectlarger-maskbank'
+#extent = [89.081,90.3,24,26.5]
+#regname = 'rectlarger-maskbank'
+#regname = 'rectlarger-maskbankMSWEP'
+#regname = 'rectlarger-chansolverMSWEP_slopev2fix'
+#regname =  'rectlarger-chansolverMSWEP_2020-07-13'
+
+extent = [87.628,92.7379,21.13,26.681]
+regname = 'bangladesh-bnksmooth-chansolverMSWEP_2020-11-02'
+
+#extent = [87.628,92.7379,22.4562,26.681]
+#regname = 'bangladesh-inland-chansolverMSWEP_2020-11-02'
+
 ds_buffer = 0.3 # buffer around each reach to set the downstream boundary
 
 extentstr = str(extent)[1:-1]
 res = 0.0025 # in degrees
 resname = '9sd8'
+
+#res = 0.000833
+#resname = '3sd8'
+
 #resname = '9sd4'
 clipname = regname+'_'+resname
 
 # Pattern of name of mizuroute simulations to process (can contain wildcards '*','?' etc)
-#mizuRuns = 'GBM-p1deg_90?_MSWEP2-2-ERA5-calibrated2_MSWEP2-2-ERA5/q_*2017-1-1.nc'
-mizuRuns = 'GBM-tiled2-2_90?_calibrated1/q_*.nc'
+mizuRuns = 'GBM-p1deg_900_MSWEP2-2-ERA5-calibrated1_MSWEP2-2-ERA5/q_*_1980-1-1.nc'
+#mizuRuns = 'GBM-tiled2-2_90?_calibrated1/q_*.nc'
 # Domain to use
 #xbound = [89,90]
 #ybound = [24.5,26]
@@ -120,7 +134,7 @@ ntimes = None
 sublist = []
 
 dryrun = False
-override = True
+skip_existing = 'started' # 'no', 'completed'
 
 # Setup for file paths
 host = socket.gethostname()
@@ -143,6 +157,7 @@ if host[:7] == 'newblue':
 	ncpus = 16 # (node size is 16)
 	jobsize = 4 # number of processors per simulation
 	simsperjob = 24
+	qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
 
 elif host[:3]=='bp1':
 	mizuroute_outdir = '/work/pu17449/mizuRoute/output/'
@@ -154,12 +169,13 @@ elif host[:3]=='bp1':
 
 	# Qsub file for HPC queue
 	qsub_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_bp.sh'
-	control_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v3.py'
+	control_script = '/home/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v4.py'
 	exe_file = '/home/pu17449/bin/lisflood_double_rect_r688'
 	#exe_file = '/home/pu17449/bin/lisflood_double_rect_trunk-r647'
-	ncpus = 4 # (node size is 24) # number of processors per job
-	jobsize = 4 # number of processors per simulation
+	ncpus = 24 # (node size is 24) # number of processors per job
+	jobsize = 24 # number of processors per simulation
 	simsperjob = 1
+	qsub_cmd = ['qsub','-l','select=1:ncpus='+str(ncpus)+':ompthreads='+str(jobsize)+':mem='+str(4*ncpus)+'gb','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,RESULTDIR',qsub_script]
 
 # Specify directories (relative paths)
 ###############################################################################################
@@ -190,7 +206,8 @@ f_upstream_all  = os.path.join(streamdir,'strn_network_'+resname2+'_acc_upstream
 # parameter file template for lisflood
 # TODO, at the moment this is created manually, but could be automated a bit more
 #f_par_template = '/newhome/pu17449/data/lisflood/ancil_data/lisfloodfp_d89s_RectTest/077_template.par'
-f_par_template = os.path.join(lfdir,'077_template_vout.par')
+f_par_template = os.path.join(lfdir,'077_template.par')
+#f_par_template = os.path.join(lfdir,'077_template_vout.par')
 # output bci file (only one needed to describe the discharge points of the network)
 f_bci = os.path.join(lf_dischargedir,clipname+'.bci')
 print('bcifile:',f_bci)
@@ -294,7 +311,13 @@ for link in links:
 	#####################################################################
 	# Check if ds point is on the boundary
 	xd,yd = points_ds[link]
-	if xd - res*2 < extent[0]: # West
+	# Check if the downstream link is exiting into the ocean
+	# TODO: generalise to allow different fixed height or variable height (for tides/ storm surge)
+	dslink = dslinks[link]
+	if dslink<0:
+		bc_str = 'P '+str(xd)+' '+str(yd)+' HFIX 0.0'
+		ds_bcs.append(bc_str)
+	elif xd - res*2 < extent[0]: # West
 		# create string setting west boundary condition
 		bc_str = 'W '+str(yd-ds_buffer)+' '+str(yd+ds_buffer)+' FREE '+str(slope[link])
 		ds_bcs.append(bc_str)
@@ -310,6 +333,10 @@ for link in links:
 		# create string setting north boundary condition
 		bc_str = 'N '+str(xd-ds_buffer)+' '+str(xd+ds_buffer)+' FREE '+str(slope[link])
 		ds_bcs.append(bc_str)
+
+if regname == 'bangladesh-inland-chansolverMSWEP_2020-11-02': # Add HFIX to all of southern boundary
+	bc_str = 'S 87.66 91.73 HFIX 0.0'
+	ds_bcs.append(bc_str)
 
 ###############################################################################################
 # Load Mizuroute river network (latitude and longitude of upstream points of each segment)
@@ -338,6 +365,7 @@ with Dataset(f_network,'r') as f:
 #fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrateRand0001_'+model+'_*_EWEMBI/q_*.nc')
 #fpattern = os.path.join(mizuroute_outdir,'GBM-tiled2-2_904_calibrated?','q_*.nc')
 fpattern = os.path.join(mizuroute_outdir,mizuRuns)#,'q_*.nc')
+print('Input runs:',fpattern)
 for f_discharge in glob.glob(fpattern):
 	#f_discharge = '/home/pu17449/data2/mizuRoute/merithydro/q_GBM_MERIT-Hydro_1988-1-1.nc'
 	fname = os.path.basename(f_discharge)
@@ -345,14 +373,17 @@ for f_discharge in glob.glob(fpattern):
 	runname = fname[2:-7]
 	year = int(runname[-4:])
 	print(runname,year)
-	f_csv = os.path.join(lf_dischargedir,runname+'.csv')
-	f_bdy = os.path.join(lf_dischargedir,runname+'.bdy')
-	f_par = os.path.join(lf_pardir,runname+'.par')
+	f_csv = os.path.join(lf_dischargedir,runname+'_'+clipname+'.csv')
+	f_bdy = os.path.join(lf_dischargedir,runname+'_'+clipname+'.bdy')
+	f_par = os.path.join(lf_pardir,runname+'_'+clipname+'.par')
 
 	outdir = os.path.join(resultdir,runname)
 	maxtif = os.path.join(outdir,runname+'-max.tif') # Only generated after the run is finished
-	if os.path.exists(maxtif) and not override:
+	if os.path.exists(maxtif) and not skip_existing == 'no':
 		print('Result already exists, skipping')
+		continue
+	if os.path.exists(outdir) and skip_existing == 'started':
+		print('Result already started, skipping')
 		continue
 
 	if not os.path.exists(f_bdy):
@@ -486,7 +517,7 @@ for f_discharge in glob.glob(fpattern):
 		os.environ['CONTROL_FLIST']=':'.join(sublist)
 		print(os.environ['CONTROL_FLIST'])
 #		subprocess.call(['qsub','-v','CONTROL_FLIST',qsub_script])
-		qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
+		#qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
 		print(' '.join(qsub_cmd))
 		if not dryrun:
 			subprocess.call(qsub_cmd)
@@ -500,7 +531,7 @@ if len(sublist)>0:
 	print('Submitting jobs',len(sublist))
 	os.environ['CONTROL_FLIST']=':'.join(sublist)
 	print(os.environ['CONTROL_FLIST'])
-	qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
+	#qsub_cmd = ['qsub','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,NCPUS,OMP_NUM_THREADS,RESULTDIR',qsub_script]
 	print(' '.join(qsub_cmd))
 	if not dryrun:
 		subprocess.call(qsub_cmd)
