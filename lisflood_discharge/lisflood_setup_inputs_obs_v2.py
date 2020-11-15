@@ -103,7 +103,8 @@ ds_buffer = 0.1 # buffer around each reach to set the downstream boundary
 #regname =  'rectlarger-chansolverMSWEP_2020-07-13'
 
 extent = [87.628,92.7379,21.13,26.681]
-regname = 'bangladesh-bnksmooth-chansolverMSWEP_2020-11-02'
+#regname = 'bangladesh-bnksmooth-chansolverMSWEP_2020-11-02'
+regname = 'bangladesh-fixelev2width2'
 
 #extent = [87.628,92.7379,22.4562,26.681]
 #regname = 'bangladesh-inland-chansolverMSWEP_2020-11-02'
@@ -121,7 +122,7 @@ resname = '9sd8'
 clipname = regname+'_'+resname
 
 # Pattern of name of mizuroute simulations to process (can contain wildcards '*','?' etc)
-mizuRuns = 'GBM-p1deg_900_MSWEP2-2-ERA5-calibrated1_MSWEP2-2-ERA5/q_*_1980-1-1.nc'
+mizuRuns = 'GBM-p1deg_900_MSWEP2-2-ERA5-calibrated1_MSWEP2-2-ERA5/q_*_1983-1-1.nc'
 #mizuRuns = 'GBM-tiled2-2_90?_calibrated1/q_*.nc'
 # Domain to use
 #xbound = [89,90]
@@ -176,6 +177,30 @@ elif host[:3]=='bp1':
 	jobsize = 24 # number of processors per simulation
 	simsperjob = 1
 	qsub_cmd = ['qsub','-l','select=1:ncpus='+str(ncpus)+':ompthreads='+str(jobsize)+':mem='+str(4*ncpus)+'gb','-v','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,RESULTDIR',qsub_script]
+
+elif host[:3]=='bc4':
+	mizuroute_outdir = '/mnt/storage/scratch/pu17449/mizuRoute/output'
+	# File, storing network attributes
+	f_network        = '/mnt/storage/home/pu17449/src/mizuRoute/route/ancillary_data/MERIT_mizuRoute_network_meta.nc'
+	# Lisflood simulation directories
+	lfdir = '/mnt/storage/scratch/pu17449/lisflood/lisfloodfp_'+clipname
+	logdir = '/mnt/storage/scratch/pu17449/lisflood/logs'
+
+	# Qsub file for HPC queue
+	qsub_script = '/mnt/storage/home/pu17449/src/setup_scripts/lisflood_discharge/call_pythonscript_bc4.sh'
+	control_script = '/mnt/storage/home/pu17449/src/setup_scripts/lisflood_discharge/qsub_multiproc_v4.py'
+	exe_file = '/mnt/storage/home/pu17449/src/pfu_d8subgrid/lisflood_double_rect_688'
+	#exe_file = '/home/pu17449/bin/lisflood_double_rect_trunk-r647'
+	# For now just run a single simulation per job and let the scheduler optimize resources
+	ncpus = 14 # (node size is 28) # number of processors per job
+	jobsize = 14 # number of processors per simulation
+	simsperjob = 1 # can be a multiple of ncpus/jobsize to run simualtions sequentially
+	#qsub_cmd = ['sbatch','--mem-per-cpu','4gb','--ntasks-per-node','1','--cpus-per-task',str(jobsize),'--export','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,RESULTDIR',qsub_script]
+	# Assign double CPUs (which are hyperthreads) compared to jobsize
+	qsub_cmd = ['sbatch','--mem-per-cpu','4gb','--ntasks-per-node','1','--cpus-per-task',str(jobsize*2),'--export','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,RESULTDIR,OMP_NUM_THREADS,NCPUS',qsub_script]
+	# Use hint=nomultithreading
+	#qsub_cmd = ['sbatch','--hint','nomultithread','--mem-per-cpu','4gb','--ntasks-per-node','1','--cpus-per-task',str(jobsize),'--export','CONTROL_FLIST,EXE_FILE,LOGDIR,CONTROL_SCRIPT,LISFLOOD_DIR,RESULTDIR,OMP_NUM_THREADS,NCPUS',qsub_script]
+
 
 # Specify directories (relative paths)
 ###############################################################################################
@@ -337,6 +362,27 @@ for link in links:
 if regname == 'bangladesh-inland-chansolverMSWEP_2020-11-02': # Add HFIX to all of southern boundary
 	bc_str = 'S 87.66 91.73 HFIX 0.0'
 	ds_bcs.append(bc_str)
+elif regname[:10] =='bangladesh': # Just choose point locations for fixing water height
+	ds_bcs.append('P 90.65 22.46 HFIX 0.0')
+	ds_bcs.append('P 90.6 22.46 HFIX 0.0')
+	ds_bcs.append('P 90.44 22.46 HFIX 0.0')
+	ds_bcs.append('P 90.407 22.46 HFIX 0.0')
+	ds_bcs.append('P 90.304 22.46 HFIX 0.0')
+	ds_bcs.append('P 90.176 22.46 HFIX 0.0')
+	ds_bcs.append('P 89.98 22.46 HFIX 0.0')
+	ds_bcs.append('P 89.859 22.46 HFIX 0.0')
+	ds_bcs.append('P 89.59 22.46 HFIX 0.0')
+	ds_bcs.append('P 89.42 22.46 HFIX 0.0')
+	ds_bcs.append('P 89.257 22.46 HFIX 0.0')
+	ds_bcs.append('P 89.206 22.46 HFIX 0.0')
+	ds_bcs.append('P 88.995 22.46 HFIX 0.0')
+	ds_bcs.append('P 88.899 22.46 HFIX 0.0')
+	ds_bcs.append('P 88.854 22.46 HFIX 0.0')
+	ds_bcs.append('P 88.765 22.46 HFIX 0.0')
+	ds_bcs.append('P 88.696 22.46 HFIX 0.0')
+	ds_bcs.append('P 88.118 22.46 HFIX 0.0')
+	ds_bcs.append('P 87.881 22.46 HFIX 0.0')
+
 
 ###############################################################################################
 # Load Mizuroute river network (latitude and longitude of upstream points of each segment)

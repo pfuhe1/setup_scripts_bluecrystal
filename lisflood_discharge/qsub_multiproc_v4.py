@@ -63,7 +63,7 @@ with ProcessPoolExecutor(max_workers=numprocesses) as pool:# since node has 16 c
 		sim_name =fname[:-4]
 		#outdir = os.path.join(resultdir,sim_name)
 		# Get outdir from 'dirroot' in control file:
-		outdir = os.path.join(lfdir,get_dirroot(control_file)
+		outdir = os.path.join(lfdir,get_dirroot(control_file))
 		logfile = os.path.join(logdir,sim_name+'.log')
 		cmd = ['time',exefile,'-v',control_file]
 		#ret = pool.apply_async(subprocess.call,cmd,{'stdout':open(logfile,'w') ,'stderr':subprocess.STDOUT})
