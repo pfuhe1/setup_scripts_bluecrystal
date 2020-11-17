@@ -18,6 +18,19 @@ def get_dirroot(parfile):
 				return line.strip().split()[-1]
 	raise Exception('Error, couldnt find "dirroot" in parfile: '+parfile)
 
+def get_name_dir(parfile):
+	dirroot=None
+	sim_name=None
+	with open(parfile,'r') as f:
+		for line in f:
+			if line[:7]=='dirroot':
+				dirroot = line.strip().split()[-1]
+			elif line[:7]=='resroot':
+				sim_name = line.strip().split()[-1]
+	if dirroot is None or sim_name is None:
+		raise Exception('Error, couldnt find "dirroot or resroot" in parfile: '+parfile)
+	return sim_name,dirroot
+
 def call_subproc(cmd,sim_name,logfile):
 	print('command',cmd)
 	print('log',logfile)
@@ -29,14 +42,14 @@ def call_subproc(cmd,sim_name,logfile):
 # v2: specify jobsize for multiprocess conversion to tiff
 #     specify outdir (where the output files should be)
 #	  redirects stdout to logfile
-def call_subproc_v2(cmd,sim_name,outdir,logfile,jobsize):
+def call_subproc_v2(cmd,resroot,outdir,logfile,jobsize):
 	print('command',cmd)
 	print('log',logfile)
 	ret = subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
 	# Append convert_to_tiff output to logfile
 	with open(logfile,'a') as f:
 		with redirect_stdout(f):
-			convert_to_tif_v4(outdir,sim_name,jobsize=jobsize)
+			convert_to_tif_v4(outdir,resroot,jobsize=jobsize)
 
 
 # Print start time
@@ -62,13 +75,15 @@ with ProcessPoolExecutor(max_workers=numprocesses) as pool:# since node has 16 c
 		fname = os.path.basename(control_file)
 		sim_name =fname[:-4]
 		#outdir = os.path.join(resultdir,sim_name)
-		# Get outdir from 'dirroot' in control file:
-		outdir = os.path.join(lfdir,get_dirroot(control_file))
+		# Get result root  and outdir root  from 'resroot' and 'dirroot' in control file:
+		#outdir = os.path.join(lfdir,get_dirroot(control_file))
+		resroot,dirroot = get_name_dir(parfile)
+		outdir = os.path.join(lfdir,dirroot)
 		logfile = os.path.join(logdir,sim_name+'.log')
 		cmd = ['time',exefile,'-v',control_file]
 		#ret = pool.apply_async(subprocess.call,cmd,{'stdout':open(logfile,'w') ,'stderr':subprocess.STDOUT})
 		#subprocess.call(cmd,stdout=open(logfile,'w'),stderr=subprocess.STDOUT)
-		ret = pool.submit(call_subproc_v2,cmd,sim_name,outdir,logfile,jobsize)
+		ret = pool.submit(call_subproc_v2,cmd,resroot,outdir,logfile,jobsize)
 
 print(ret.result())
 print('Finished:',datetime.datetime.now())
